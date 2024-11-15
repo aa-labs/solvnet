@@ -7,3 +7,6 @@
 [submodule "staking-contracts/lib/openzeppelin-contracts"]
 	path = staking-contracts/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "staking-contracts/lib/swap-router-contracts"]
+	path = staking-contracts/lib/swap-router-contracts
+	url = https://github.com/Uniswap/swap-router-contracts
