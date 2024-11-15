@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/table";
 import { Wallet, Activity, Settings, Loader2 } from "lucide-react";
 import { ethers } from "ethers";
+import VaultAbi from '@/abi/Vault.json'
+import { formatSeconds } from "@/lib/utils";
 
 interface TokenBalance {
   logo: string;
@@ -28,6 +30,14 @@ interface TokenBalance {
   name: string;
   amount: string;
   address?: string;
+}
+
+interface Lease {
+  duration: string;
+  apr: 5,
+  token: string, 
+  amount: number,
+  status: string
 }
 
 const User = () => {
@@ -40,6 +50,7 @@ const User = () => {
   });
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [leases, setLeases] = useState<Lease[]>([]);
 
   // Function to fetch token balances
   const fetchBalances = async (address: string) => {
@@ -101,6 +112,49 @@ const User = () => {
     }
   };
 
+  const fetchLeases = async () => {
+    setIsLoading(true);
+    try {
+      const provider = new ethers.providers.JsonRpcProvider(
+        "http://localhost:8545"
+      );
+
+      const vaultContractAddress = "0x6386430503cc0B986bAfC59834bdeDD9bfe31906";
+
+      const vaultContract = new ethers.Contract(
+        vaultContractAddress,
+        VaultAbi.abi,
+        provider
+      );
+
+      const leaseCount = await vaultContract.noOfLeases();
+      console.log("these are total lease count", leaseCount._hex);
+      let totalLeases = parseInt(leaseCount._hex, 16);
+
+      let leases = [];
+
+      for (let i = 0; i < totalLeases; i++) {
+        const leaseResp = await vaultContract.leases(i);
+        console.log("lease", leaseResp);
+        let lease: Lease = {
+          duration: formatSeconds(parseInt(leaseResp.duration._hex, 16)),
+          token: "USDC",
+          amount: parseInt(leaseResp.amount._hex, 16),
+          apr: 5,
+          status: leaseResp.status ? "Active" : "Expired"
+        }
+
+        leases.push(lease);
+      }
+
+      setLeases(leases);
+    } catch (error) {
+      console.error("Error fetching balances:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   // Fetch balances when user connects wallet
   useEffect(() => {
     if (user?.wallet?.address) {
@@ -108,30 +162,34 @@ const User = () => {
     }
   }, [user?.wallet?.address]);
 
+  useEffect(() => {
+      fetchLeases();
+  }, [])
+
   // Placeholder data - replace with actual data fetching
-  const activeLeases = [
-    {
-      token: "ETH",
-      amount: "0.5",
-      apr: "5%",
-      duration: "7 days",
-      status: "Active",
-    },
-    {
-      token: "USDC",
-      amount: "200",
-      apr: "3.5%",
-      duration: "30 days",
-      status: "Active",
-    },
-    {
-      token: "DAI",
-      amount: "100",
-      apr: "4%",
-      duration: "14 days",
-      status: "Expired",
-    },
-  ];
+  // const activeLeases = [
+  //   {
+  //     token: "ETH",
+  //     amount: "0.5",
+  //     apr: "5%",
+  //     duration: "7 days",
+  //     status: "Active",
+  //   },
+  //   {
+  //     token: "USDC",
+  //     amount: "200",
+  //     apr: "3.5%",
+  //     duration: "30 days",
+  //     status: "Active",
+  //   },
+  //   {
+  //     token: "DAI",
+  //     amount: "100",
+  //     apr: "4%",
+  //     duration: "14 days",
+  //     status: "Expired",
+  //   },
+  // ];
 
   const handleConfigChange = (e: any) => {
     setConfig({ ...config, [e.target.name]: e.target.value });
@@ -245,11 +303,11 @@ const User = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeLeases.map((lease, index) => (
+                {leases.map((lease, index) => (
                   <TableRow key={index}>
                     <TableCell>{lease.token}</TableCell>
                     <TableCell>{lease.amount}</TableCell>
-                    <TableCell>{lease.apr}</TableCell>
+                    <TableCell>{lease.apr + "%"}</TableCell>
                     <TableCell>{lease.duration}</TableCell>
                     <TableCell>{lease.status}</TableCell>
                   </TableRow>

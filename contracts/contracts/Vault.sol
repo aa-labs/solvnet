@@ -27,14 +27,14 @@ contract Vault {
 
     // called by solver
     function lease(uint256 _duration, uint64 _amount, address _tokenAddress) public {
-        uint64 _prevLease = loaners[msg.sender];
-        require(TOTAL_LIQUIDITY >= _amount, "Not enough liquidity");
-        require(_prevLease + _amount <= MAX_WITHDRAWABLE_LIQUIDITY, "Amount exceeds max withdrawable liquidity");
+        // uint64 _prevLease = loaners[msg.sender];
+        // require(TOTAL_LIQUIDITY >= _amount, "Not enough liquidity");
+        // require(_prevLease + _amount <= MAX_WITHDRAWABLE_LIQUIDITY, "Amount exceeds max withdrawable liquidity");
         
-        TOTAL_LIQUIDITY -= _amount;
-        IERC20(_tokenAddress).transfer(msg.sender, _amount);
+        // TOTAL_LIQUIDITY -= _amount;
+        // IERC20(_tokenAddress).transfer(msg.sender, _amount);
         
-        loaners[msg.sender] += _amount;
+        // loaners[msg.sender] += _amount;
         leases[noOfLeases] = SolverLease(_duration, _amount, _tokenAddress, true);
         noOfLeases++;
     } 
