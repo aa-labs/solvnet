@@ -10,3 +10,6 @@
 [submodule "staking-contracts/lib/swap-router-contracts"]
 	path = staking-contracts/lib/swap-router-contracts
 	url = https://github.com/Uniswap/swap-router-contracts
+[submodule "staking-contracts/lib/v2-core"]
+	path = staking-contracts/lib/v2-core
+	url = https://github.com/Uniswap/v2-core
