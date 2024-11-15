@@ -20,19 +20,19 @@ contract USDCUSDTUniswapSwap {
     }
 
     function swapUSDCtoUSDT(uint256 _amountIn, uint256 _amountOutMin, uint256 _deadline) external {
-        IERC20(usdc).transferFrom(msg.sender, address(this), _amountIn); // Transfer USDC from sender to contract
-        IERC20(usdc).approve(router, _amountIn); // Approve the router to spend USDC
+        // IERC20(usdc).transferFrom(msg.sender, address(this), _amountIn); // Transfer USDC from sender to contract
+        // IERC20(usdc).approve(router, _amountIn); // Approve the router to spend USDC
 
-        address[] memory path = new address[](2);
-        path[0] = usdc; // USDC
-        path[1] = usdt; // USDT
+        // address[] memory path = new address[](2);
+        // path[0] = usdc; // USDC
+        // path[1] = usdt; // USDT
 
-        IUniswapV2Router02(router).swapExactTokensForTokens(
-            _amountIn, 
-            _amountOutMin, 
-            path, 
-            msg.sender, // Send USDT back to the user
-            _deadline
-        );
+        // IUniswapV2Router02(router).swapExactTokensForTokens(
+        //     _amountIn, 
+        //     _amountOutMin, 
+        //     path, 
+        //     msg.sender, // Send USDT back to the user
+        //     _deadline
+        // );
     }
 }
