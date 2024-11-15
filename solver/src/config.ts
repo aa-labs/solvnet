@@ -1,0 +1,1 @@
+export const RPC_URL = "https://mainnet.infura.io/v3/your-infura-key";

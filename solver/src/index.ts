@@ -1,1 +1,5 @@
-console.log('Hello TypeScript!');
+import { solve } from "./run";
+
+(async () => {
+    await solve();
+})()
