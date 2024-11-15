@@ -13,3 +13,6 @@
 [submodule "staking-contracts/lib/v2-core"]
 	path = staking-contracts/lib/v2-core
 	url = https://github.com/Uniswap/v2-core
+[submodule "staking-contracts/lib/modulekit"]
+	path = staking-contracts/lib/modulekit
+	url = https://github.com/rhinestonewtf/modulekit
