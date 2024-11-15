@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 // import {OAppRead} from "LayerZero-v2/packages/layerzero-v2/evm/oapp/contracts/oapp/OAppRead.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
