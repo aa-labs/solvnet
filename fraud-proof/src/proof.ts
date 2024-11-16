@@ -10,9 +10,7 @@ const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
 const STAKING_CONTRACT_ADDRESS = "0xYourStakingContractAddress"; // Replace with your staking contract address
 const STAKING_CONTRACT_ABI = [
-  // Minimal ABI for checking staking data
-  "function getStakeInfo(address user) view returns (uint256 startTime, uint256 lockPeriod, bool refunded)",
-  "function slashStake(address user) public",
+  "function slash(address _solver, address _userAddress) external",
 ];
 
 // Initialize the contract instance
@@ -46,7 +44,7 @@ const formatTime = (seconds: number) => {
 };
 
 // Fetch and evaluate stake information
-const fetchStakeInfo = async () => {
+export const fetchStakeInfo = async () => {
   loader.start();
 
   try {
@@ -98,5 +96,5 @@ const fetchStakeInfo = async () => {
   }
 };
 
-// Run the script
-fetchStakeInfo();
+
+
