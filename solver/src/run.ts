@@ -20,55 +20,55 @@ const ERC20_ABI = [
 
 const MATCHER_BASE_URL = "http://localhost:3000";
 const TEE_EXPLORER = "https://ra-quote-explorer.vercel.app/reports";
-const VERIFICATION_HASH = "a03404f3b9ff15461d4e907f4f4c8c203875c494bf50c71c5659517c18805961";
+const VERIFICATION_HASH =
+  "a03404f3b9ff15461d4e907f4f4c8c203875c494bf50c71c5659517c18805961";
 
 const readStream = async (stream: any) => {
-    const reader = stream.getReader();
-    let result = '';
-    
-    while (true) {
-        const {done, value} = await reader.read();
-        if (done) break;
-        result += new TextDecoder().decode(value);
-    }
-    
-    return result;
-}
+  const reader = stream.getReader();
+  let result = "";
 
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    result += new TextDecoder().decode(value);
+  }
+
+  return result;
+};
 
 const demoSolverRequests = [
-    {
-      id: "solver1",
-      tokenAmount: 1000,
-      duration: 30,
-      tokenName: "USDC",
-      apr: 5,
-    },
-    {
-      id: "solver2",
-      tokenAmount: 2000,
-      duration: 60,
-      tokenName: "USDC",
-      apr: 6,
-    },
-  ];
-  
-  const demoUserLeaseRequests = [
-    {
-      id: "userLease1",
-      tokenAmount: 800,
-      duration: 25,
-      tokenName: "USDC",
-      apr: 7,
-    },
-    {
-      id: "userLease2",
-      tokenAmount: 1500,
-      duration: 45,
-      tokenName: "USDC",
-      apr: 6.5,
-    },
-  ];
+  {
+    id: "solver1",
+    tokenAmount: 1000,
+    duration: 30,
+    tokenName: "USDC",
+    apr: 5,
+  },
+  {
+    id: "solver2",
+    tokenAmount: 2000,
+    duration: 60,
+    tokenName: "USDC",
+    apr: 6,
+  },
+];
+
+const demoUserLeaseRequests = [
+  {
+    id: "userLease1",
+    tokenAmount: 800,
+    duration: 25,
+    tokenName: "USDC",
+    apr: 7,
+  },
+  {
+    id: "userLease2",
+    tokenAmount: 1500,
+    duration: 45,
+    tokenName: "USDC",
+    apr: 6.5,
+  },
+];
 
 interface Lease {
   leaseId: string;
@@ -124,9 +124,9 @@ const fulfillLease = async (
     signer
   );
   const tokenContract = new ethers.Contract(USDC, ERC20_ABI, signer);
-  
+
   //! TODO the approval should be with solver module here right ?
-  // some random amount for now  
+  // some random amount for now
 
   try {
     const approve = await tokenContract.approve(SOLVE_MODULE, 100);
@@ -148,22 +148,34 @@ const fulfillLease = async (
   }
 };
 
-const getLease = async (saAddress: string, leaseId: string, provider: JsonRpcProvider) => {
-    const { SOLVE_MODULE } = addresses;
-    const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
-    const solveModuleContract = new ethers.Contract(SOLVE_MODULE, SOLVER_MODULE_ABI, provider);
-    const lease = await solveModuleContract.getLease(saAddress, leaseId);   
-    console.log("Lease", lease);
-}
+const getLease = async (
+  saAddress: string,
+  leaseId: string,
+  provider: JsonRpcProvider
+) => {
+  const { SOLVE_MODULE } = addresses;
+  const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
+  const solveModuleContract = new ethers.Contract(
+    SOLVE_MODULE,
+    SOLVER_MODULE_ABI,
+    provider
+  );
+  const lease = await solveModuleContract.getLease(saAddress, leaseId);
+  console.log("Lease", lease);
+};
 
-const getAllLeases = async (provider: JsonRpcProvider, saAddress: string, ) => {
-    const { SOLVE_MODULE } = addresses;
-    const solveModuleContract = new ethers.Contract(SOLVE_MODULE, SOLVER_MODULE_ABI, provider);
-    const leases = await solveModuleContract.getActiveLeases(saAddress);
-    console.log("Leases", leases);
+const getAllLeases = async (provider: JsonRpcProvider, saAddress: string) => {
+  const { SOLVE_MODULE } = addresses;
+  const solveModuleContract = new ethers.Contract(
+    SOLVE_MODULE,
+    SOLVER_MODULE_ABI,
+    provider
+  );
+  const leases = await solveModuleContract.getActiveLeases(saAddress);
+  console.log("Leases", leases);
 
-    // transform these leases into lease object and send those for solving 
-}
+  // transform these leases into lease object and send those for solving
+};
 
 export const solve = async (tokenAmount: number): Promise<String[]> => {
   const { USDC, USDT, UNISWAP, VAULT, SOLVE_MODULE } = addresses;
@@ -185,36 +197,46 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
     };
   });
 
-  const lease = getLease(leaseIds[0].smartAccount, leaseIds[0].leaseId, provider);
+  const lease = getLease(
+    leaseIds[0].smartAccount,
+    leaseIds[0].leaseId,
+    provider
+  );
 
   console.log("Fetched leaseIds", leaseIds);
 
-  // fetch active leases and find the one which matches the solver intent 
+  // fetch active leases and find the one which matches the solver intent
   const response = await fetch(`${MATCHER_BASE_URL}/api/getOptimalMatches`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       userLeaseRequests: demoUserLeaseRequests,
-      solverRequests: demoSolverRequests
-    })
+      solverRequests: demoSolverRequests,
+    }),
   });
 
   console.log("Optimal lease for solver", response);
 
-  const attestationReportResp = await fetch(`${MATCHER_BASE_URL}/api/remoteAttestation`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const attestationReportResp = await fetch(
+    `${MATCHER_BASE_URL}/api/remoteAttestation`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
   const attestationData = await readStream(attestationReportResp.body);
   console.log("Attestation report", attestationData);
 
   //! TODO: we need to request attestation here and verify it
-  console.log("Attestation verification result can be found here ", `${TEE_EXPLORER}/${VERIFICATION_HASH}`);
+  console.log(
+    "Attestation verification result can be found here ",
+    `${TEE_EXPLORER}/${VERIFICATION_HASH}`
+  );
 
   // for solver: swap usdc to usdt now a.k.a using lease here
   const uniswapContract = new ethers.Contract(UNISWAP, Uniswapabi.abi, signer);
@@ -236,14 +258,17 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
   await new Promise((resolve) => setTimeout(resolve, 60000));
 
   // hardcoded saAddresses for now
-  return ["0x6386430503cc0B986bAfC59834bdeDD9bfe31906", "0x6386430503cc0B986bAfC59834bdeDD9bfe31906"]
+  return [
+    "0x6386430503cc0B986bAfC59834bdeDD9bfe31906",
+    "0x6386430503cc0B986bAfC59834bdeDD9bfe31906",
+  ];
 };
 
 export const fullfillLease = async (leaseOwner: string, leaseId: number) => {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   try {
     await fulfillLease(leaseOwner, leaseId, provider);
-  } catch(err) {
+  } catch (err) {
     console.error("Error fulfilling lease", err);
   }
-}
+};
