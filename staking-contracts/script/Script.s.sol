@@ -136,7 +136,7 @@ contract DeployDeterministic is Script {
 
     function _fundToken(MockERC20 token, address to, uint256 amount) internal {
         uint256 balance = token.balanceOf(to);
-        if (balance < amount) {
+        if (balance < amount / 2) {
             token.mint(to, amount - balance);
         }
     }
@@ -265,18 +265,29 @@ contract DeployDeterministic is Script {
         vm.stopBroadcast();
     }
 
-    function tryLeaseFlow(
-        uint256 deployerKey,
-        uint256 solverKey,
-        SolvNetModule solvNetModule,
-        SolverStaking solverStaking,
-        MockERC20 stakingToken
-    ) internal {
+    function tryLeaseFlowAndSlashing() internal {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployerAddress = vm.addr(deployerPrivateKey);
+
+        uint256 solverPrivateKey = vm.envUint("SOLVER_PRIVATE_KEY");
+        address solverAddress = vm.addr(solverPrivateKey);
+
+        console2.log("Deployer: ", deployerAddress);
+        console2.log("Solver: ", solverAddress);
+
+        (
+            MockERC20 stakingToken,
+            MockERC20 memeToken,
+            MockERC20 memeToken2,
+            SolverStaking solverStaking,
+            SolvNetModule solvNetModule
+        ) = deployPrimaryChain(baseFork, deployerPrivateKey, solverPrivateKey);
+
         // Switch to Base
         vm.selectFork(baseFork);
         // Stake Solver
-        vm.startBroadcast(solverKey);
-        address solverAddress = vm.addr(solverKey);
+        vm.startBroadcast(solverPrivateKey);
+        _fundToken(stakingToken, solverAddress, type(uint256).max / 2);
         (uint256 amount,,) = solverStaking.stakes(solverAddress);
         if (amount == 0) {
             if (stakingToken.allowance(solverAddress, address(solverStaking)) < type(uint256).max / 2) {
@@ -292,26 +303,9 @@ contract DeployDeterministic is Script {
 
         // Switch to Arbitrum
         vm.selectFork(arbitrumFork);
+        vm.startBroadcast(deployerPrivateKey);
 
-        vm.startBroadcast(deployerKey);
-
-        address deployerAddress = vm.addr(deployerKey);
-
-        // Deploy Meme Token 1
-        console2.log("Deploying Meme Token");
-        bytes memory memeTokenCreationCode = abi.encodePacked(
-            vm.getCode("test/mocks/MockERC20.sol:MockERC20"), abi.encode(MEME_TOKEN_SYMBOL, MEME_TOKEN_SYMBOL)
-        );
-        MockERC20 memeToken = MockERC20(_deployWithSanityChecks(MEME_TOKEN_SALT, memeTokenCreationCode));
-        console2.log("Meme Token deployed at: ", address(memeToken), "\n");
-
-        // Mint Meme Token to Deployer
-        console2.log("Minting Meme Token to Deployer");
-        uint256 balance = memeToken.balanceOf(deployerAddress);
-        if (balance < TOKEN_AMT) {
-            console2.log("Minting Meme Token to Deployer");
-            memeToken.mint(deployerAddress, TOKEN_AMT - balance);
-        }
+        _fundToken(memeToken, deployerAddress, TOKEN_AMT);
 
         // Set Lease Configuration
         console2.log("Setting Lease Configuration");
@@ -323,14 +317,14 @@ contract DeployDeterministic is Script {
         });
         solvNetModule.updateLeaseConfig(config);
 
-        // Set infinite approval for SolverStaking
-        console2.log("Setting infinite approval for SolverStaking");
+        // Set infinite approval for lease
+        console2.log("Setting infinite approval for lease");
         if (memeToken.allowance(deployerAddress, address(solvNetModule)) < type(uint256).max) {
             memeToken.approve(address(solvNetModule), type(uint256).max);
         }
         vm.stopBroadcast();
 
-        vm.startBroadcast(solverKey);
+        vm.startBroadcast(solverPrivateKey);
         // Start Lease
         console2.log("Starting Lease");
         uint256 leaseId = solvNetModule.startLease(deployerAddress, address(memeToken), 100e18, solverAddress);
@@ -342,7 +336,7 @@ contract DeployDeterministic is Script {
 
         // Switch to Base
         vm.selectFork(baseFork);
-        vm.startBroadcast(deployerKey);
+        vm.startBroadcast(deployerPrivateKey);
 
         // Submit a fraud report
         console2.log("Submitting a fraud report");
@@ -397,7 +391,8 @@ contract DeployDeterministic is Script {
     }
 
     function run() external {
-        run_deploy();
+        // run_deploy();
         // debug();
+        tryLeaseFlowAndSlashing();
     }
 }
