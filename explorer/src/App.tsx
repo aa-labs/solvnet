@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import Navbar from "./components/main/Navbar";
 import Footer from "./components/main/Footer";
-import { ethers } from "ethers";
-import SolvNetContractAbi from "@/abi/SolvNet.json";
+// import { ethers } from "ethers";
+// import SolvNetContractAbi from "@/abi/SolvNet.json";
 
 // Hardcoded data
 const RPC_URL =
@@ -26,23 +26,30 @@ const TOKEN_ADDRESSES = {
   LADDU: "0x6845533D4be0A2988E49C99cDe9e1ba677344F5a",
 };
 
+interface Solver {
+  id: number;
+  name: string;
+  staked: string;
+  accessibleLiquidity: string;
+  performance: number;
+  activeLeases: number;
+  isActive?: boolean;
+  address?: string;
+}
+
+interface SmartAccount {
+  address: string;
+  availableTokens: string[];
+  leaseAmount: number;
+  apr: number;
+  duration: string;
+  isActive?: boolean;
+}
+
 interface Lease {
   id: number;
-  smartAccount: {
-    address: string;
-    availableTokens: string[];
-    leaseAmount: number;
-    apr: number;
-    duration: string;
-  };
-  solver: {
-    id: number;
-    name: string;
-    staked: string;
-    accessibleLiquidity: string;
-    performance: number;
-    activeLeases: number;
-  };
+  smartAccount: SmartAccount;
+  solver: Solver;
   amount: string;
   token: string;
   status: string;
@@ -54,18 +61,20 @@ interface IncomingOrder {
   amount: string;
   token: string;
   urgency: string;
+  isProcessing?: boolean;
 }
 
 interface LeaseTransaction {
   id: number;
   description: string;
   status: string;
+  txHash: string;
 }
 
 const SolvNetDashboard = () => {
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
 
-  const [solvers, setSolvers] = useState([
+  const [solvers, setSolvers] = useState<Solver[]>([
     {
       id: 1,
       name: "Alpha Solver",
@@ -73,6 +82,7 @@ const SolvNetDashboard = () => {
       accessibleLiquidity: "300",
       performance: 100,
       activeLeases: 2,
+      address: "0x5637bD5c6669AbEF9aF19EE0232dc2104604a1E8",
     },
     {
       id: 2,
@@ -81,10 +91,11 @@ const SolvNetDashboard = () => {
       accessibleLiquidity: "100",
       performance: 100,
       activeLeases: 8,
+      address: "0x2264064B0568f48ea884b21aEfE131B09314197e",
     },
   ]);
 
-  const [smartAccounts, setSmartAccounts] = useState([
+  const [smartAccounts, setSmartAccounts] = useState<SmartAccount[]>([
     {
       address: "0x8264064B0568f48ea884b21aEfE131B09314197e",
       availableTokens: [TOKEN_ADDRESSES.MEME],
@@ -112,38 +123,12 @@ const SolvNetDashboard = () => {
   const [leaseTransactions, setLeaseTransactions] = useState<
     LeaseTransaction[]
   >([]);
+  const [highlightedSolvers, setHighlightedSolvers] = useState<string[]>([]);
+  const [highlightedSmartAccounts, setHighlightedSmartAccounts] = useState<
+    string[]
+  >([]);
 
-  const fetchLeaseInfo = async () => {
-    const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
-    const solvNetModuleContract = new ethers.Contract(
-      MODULE_ADDRESS,
-      SolvNetContractAbi.abi,
-      provider
-    );
-
-    // Fetch active lease IDs for the user's smart account
-    let leasesData: Lease[] = [];
-    for (let i = 0; i < smartAccounts.length; i++) {
-      const activeLeaseIds = await solvNetModuleContract.getActiveLeases(
-        smartAccounts[i].address
-      );
-      console.log("herr", activeLeaseIds);
-
-      for (let j = 0; j < activeLeaseIds.length; j++) {
-        const leaseId = activeLeaseIds[j];
-        const leaseResp = await solvNetModuleContract.getLease(
-          smartAccounts[i].address,
-          leaseId
-        );
-
-        leasesData.push(leaseResp);
-      }
-    }
-
-    setActiveLeases(leasesData);
-  };
-
-  // Function to simulate adding incoming orders every 10 seconds
+  // Function to simulate adding incoming orders every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const newOrderId = incomingOrders.length + 1;
@@ -153,47 +138,104 @@ const SolvNetDashboard = () => {
         amount: (Math.floor(Math.random() * 10) + 100).toString(),
         token: "MEME",
         urgency: ["low", "medium", "high"][Math.floor(Math.random() * 3)],
+        isProcessing: true,
       };
 
       setIncomingOrders((prevOrders) => [...prevOrders, newOrder]);
 
       // Call backend solver API with the amount needed
-      handleSolverRequest(newOrder.amount);
-    }, 20000);
+      handleSolverRequest(newOrder.amount, newOrderId);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [incomingOrders]);
 
   // Function to handle solver request
-  const handleSolverRequest = async (amountNeeded: string) => {
+  const handleSolverRequest = async (amountNeeded: string, orderId: number) => {
     try {
-      const response = await fetch(
-        "https://dcfe-210-1-49-173.ngrok-free.app/solve",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: amountNeeded,
-          }),
-        }
-      );
+      const response = await fetch("http://localhost:5001/api/solve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenAmount: amountNeeded,
+          tokenAddress: TOKEN_ADDRESSES.MEME,
+        }),
+      });
 
       const data = await response.json();
 
-      // Assume data.solvers is the list of solvers returned
-      // For demo, we'll use the existing solvers
-      const solverList = data.solvers || solvers;
+      // Extract solvers used, smart accounts used, and transaction hash from API response
+      const smartAccountUsedAddresses = data.saAddresses.solSA;
+      const solversUsedAddresses = [
+        "0x5637bD5c6669AbEF9aF19EE0232dc2104604a1E8",
+      ];
+      const txHash = data.saAddresses.txHash;
 
-      // Highlight the first solver
-      const selectedSolver = solverList[0];
+      // Highlight the solvers used
+      setHighlightedSolvers(solversUsedAddresses);
+
+      // Highlight the smart accounts used
+      setHighlightedSmartAccounts(smartAccountUsedAddresses);
+
+      // Update solvers state to reflect active solvers
+      const updatedSolvers = solvers.map((solver) => {
+        if (solversUsedAddresses.includes(solver.address || "")) {
+          return { ...solver, isActive: true };
+        } else {
+          return { ...solver, isActive: false };
+        }
+      });
+
+      setSolvers(updatedSolvers);
+
+      // Update smart accounts state to reflect active smart accounts
+      const updatedSmartAccounts = smartAccounts.map((account) => {
+        if (smartAccountUsedAddresses.includes(account.address)) {
+          return { ...account, isActive: true };
+        } else {
+          return { ...account, isActive: false };
+        }
+      });
+
+      setSmartAccounts(updatedSmartAccounts);
+
+      // Stop highlighting after a delay (e.g., 5 seconds)
+      setTimeout(() => {
+        setHighlightedSolvers([]);
+        setHighlightedSmartAccounts([]);
+        setSolvers(
+          solvers.map((solver) => ({
+            ...solver,
+            isActive: false,
+          }))
+        );
+        setSmartAccounts(
+          smartAccounts.map((account) => ({
+            ...account,
+            isActive: false,
+          }))
+        );
+      }, 5000);
+
+      // Find the smart account used
+      const smartAccountUsed =
+        smartAccounts.find((account) =>
+          smartAccountUsedAddresses.includes(account.address)
+        ) || smartAccounts[0]; // Default to the first smart account if not found
+
+      // Find the solver used
+      const solverUsed =
+        updatedSolvers.find((solver) =>
+          solversUsedAddresses.includes(solver.address || "")
+        ) || updatedSolvers[0];
 
       // Add to active leases
-      const newLease = {
+      const newLease: Lease = {
         id: activeLeases.length + 1,
-        smartAccount: smartAccounts[activeLeases.length % smartAccounts.length],
-        solver: selectedSolver,
+        smartAccount: smartAccountUsed,
+        solver: solverUsed,
         amount: amountNeeded,
         token: "MEME",
         status: "Active",
@@ -210,13 +252,49 @@ const SolvNetDashboard = () => {
             0,
             6
           )}... → ${
-            selectedSolver.name
+            newLease.solver.name
           } → Protocol (Amount: ${amountNeeded} MEME)`,
           status: "Processing",
+          txHash: txHash,
         },
       ]);
+
+      // After successful API response, update the order's processing state
+      setIncomingOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId ? { ...order, isProcessing: false } : order
+        )
+      );
     } catch (error) {
       console.error("Error calling solver API:", error);
+      // In case of error, still update the processing state
+      setIncomingOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId ? { ...order, isProcessing: false } : order
+        )
+      );
+    }
+  };
+
+  // Function to handle clicking on an incoming order
+  const handleOrderClick = (orderId: number) => {
+    console.log(orderId);
+    // Find the corresponding lease transaction
+    const transaction = leaseTransactions.find((tx) => tx.id === orderId);
+    console.log(transaction);
+
+    if (transaction) {
+      // Highlight solvers used in the transaction
+      const solversUsed = solvers.filter((solver) =>
+        highlightedSolvers.includes(solver.address || "")
+      );
+
+      // Highlight smart accounts used in the transaction
+      const smartAccountsUsed = smartAccounts.filter((account) =>
+        highlightedSmartAccounts.includes(account.address.toLowerCase())
+      );
+
+      console.log(smartAccountsUsed, solversUsed);
     }
   };
 
@@ -254,7 +332,9 @@ const SolvNetDashboard = () => {
                   {smartAccounts.map((account, index) => (
                     <div
                       key={index}
-                      className="p-3 bg-white rounded-lg border hover:shadow-lg transition-shadow"
+                      className={`p-3 bg-white rounded-lg border hover:shadow-lg transition-shadow ${
+                        account.isActive ? "bg-green-100 border-green-500" : ""
+                      }`}
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -273,7 +353,11 @@ const SolvNetDashboard = () => {
                                       key as keyof typeof TOKEN_ADDRESSES
                                     ] === token
                                 );
-                                return <span key={idx}>{tokenKey} ({account.leaseAmount} USDC)</span>;
+                                return (
+                                  <span key={idx}>
+                                    {tokenKey} ({account.leaseAmount} USDC)
+                                  </span>
+                                );
                               })}
                             </span>
                           </div>
@@ -307,7 +391,9 @@ const SolvNetDashboard = () => {
                   {solvers.map((solver) => (
                     <div
                       key={solver.id}
-                      className="p-4 bg-white rounded-lg border hover:shadow-lg transition-shadow"
+                      className={`p-4 bg-white rounded-lg border hover:shadow-lg transition-shadow ${
+                        solver.isActive ? "bg-green-100 border-green-500" : ""
+                      }`}
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -349,10 +435,17 @@ const SolvNetDashboard = () => {
                   {incomingOrders.map((order) => (
                     <div
                       key={order.id}
-                      className="flex items-center justify-between p-2 bg-white rounded-lg border"
+                      className="flex items-center justify-between p-2 bg-white rounded-lg border cursor-pointer"
+                      onClick={() => handleOrderClick(order.id)}
                     >
                       <div className="flex items-center">
-                        <AlertCircle className={`${getUrgencyColor(order.urgency)} mr-2 h-4 w-4`} />
+                        {order.isProcessing ? (
+                          <div className="animate-spin mr-2 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                        ) : (
+                          <AlertCircle
+                            className={`${getUrgencyColor(order.urgency)} mr-2 h-4 w-4`}
+                          />
+                        )}
                         <div>
                           <p className="font-medium text-xs">{order.protocol}</p>
                           <p className="text-gray-500 text-xs">
@@ -360,7 +453,9 @@ const SolvNetDashboard = () => {
                           </p>
                         </div>
                       </div>
-                      <span className={`capitalize text-xs ${getUrgencyColor(order.urgency)}`}>
+                      <span
+                        className={`capitalize text-xs ${getUrgencyColor(order.urgency)}`}
+                      >
                         {order.urgency}
                       </span>
                     </div>
@@ -379,34 +474,41 @@ const SolvNetDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-center space-x-4 p-4">
+                <div className="flex items-center justify-center space-x-3 p-2">
                   <div className="flex flex-col items-center">
-                    <Wallet className="h-8 w-8 text-blue-500" />
-                    <p className="mt-2">Smart Accounts</p>
+                    <Wallet className="h-6 w-6 text-blue-500" />
+                    <p className="mt-1 text-sm">Smart Accounts</p>
                   </div>
-                  <ArrowRight className="h-8 w-8 text-gray-400" />
+                  <ArrowRight className="h-5 w-5 text-gray-400" />
                   <div className="flex flex-col items-center">
-                    <Shield className="h-8 w-8 text-green-500" />
-                    <p className="mt-2">Solvers</p>
+                    <Shield className="h-6 w-6 text-green-500" />
+                    <p className="mt-1 text-sm">Solvers</p>
                   </div>
-                  <ArrowRight className="h-8 w-8 text-gray-400" />
+                  <ArrowRight className="h-5 w-5 text-gray-400" />
                   <div className="flex flex-col items-center">
-                    <Database className="h-8 w-8 text-purple-500" />
-                    <p className="mt-2">Protocols</p>
+                    <Database className="h-6 w-6 text-purple-500" />
+                    <p className="mt-1 text-sm">Protocols</p>
                   </div>
                 </div>
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-2">
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-2">
                   {leaseTransactions.map((transaction) => (
                     <div
                       key={transaction.id.toString()}
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 mb-2 p-2 hover:bg-gray-100 rounded-md transition-colors"
                     >
                       {transaction.status === "Completed" ? (
                         <Check className="text-green-500" />
                       ) : (
                         <Clock className="text-yellow-500" />
                       )}
-                      <p className="text-sm">{transaction.description}</p>
+                      <a
+                        href={`https://base.blockscout.com/tx/${transaction.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        {transaction.description}
+                      </a>
                     </div>
                   ))}
                 </div>

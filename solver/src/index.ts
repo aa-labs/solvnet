@@ -1,5 +1,5 @@
 import { solve, fullfillLease } from "./run";
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 
 const app = express();
@@ -12,6 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 app.post("/api/solve", async (req: Request, res: Response) => {
   let tokenAmount = req.body.tokenAmount;
   let tokenAddress = req.body.tokenAddress;
+  console.log(tokenAddress, tokenAmount);
   let saAddresses = await solve(tokenAmount, tokenAddress);
   res.json({
     saAddresses,

@@ -151,7 +151,6 @@ const User = () => {
       const activeLeaseIds = await solvNetModuleContract.getActiveLeases(
         accountAddress
       );
-      console.log("herr", activeLeaseIds);
 
       let leasesData: Lease[] = [];
 
@@ -178,16 +177,14 @@ const User = () => {
 
         let lease: Lease = {
           duration: formatSeconds(
-            parseInt(leaseResp.startTime) +
-              parseInt(leaseResp.amount) -
-              Math.floor(Date.now() / 1000)
+            parseInt(leaseResp[3].toString()) - Math.floor(Date.now() / 1000)
           ),
           token: tokenSymbol,
           amount: parseFloat(
-            ethers.utils.formatUnits(leaseResp.amount, tokenDecimals)
+            ethers.utils.formatUnits(leaseResp[2], tokenDecimals)
           ),
-          apr: parseFloat(ethers.utils.formatUnits(leaseResp.apr, 2)),
-          status: leaseResp.status === 1 ? "Active" : "Fulfilled",
+          apr: parseFloat(ethers.utils.formatUnits(leaseResp[0], 2)),
+          status: leaseResp[4] === 1 ? "Active" : "Fulfilled",
         };
 
         leasesData.push(lease);
@@ -373,7 +370,7 @@ const User = () => {
       fetchLeases();
       fetchPreviousState();
     }
-  }, [accountAddress, config.tokenType]);
+  }, [accountAddress]);
 
   return (
     <main className="max-w-7xl mx-auto flex-grow flex flex-col md:flex-row overflow-hidden p-4 min-h-[calc(100vh-160px)]">
@@ -455,29 +452,46 @@ const User = () => {
               <CardTitle className="font-lexend">Active Leases</CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Token</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>APR</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leases.map((lease, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{lease.token}</TableCell>
-                    <TableCell>{lease.amount}</TableCell>
-                    <TableCell>{lease.apr + "%"}</TableCell>
-                    <TableCell>{lease.duration}</TableCell>
-                    <TableCell>{lease.status}</TableCell>
+          <CardContent className="max-h-[300px] overflow-y-auto">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                <p className="mt-2 text-sm text-gray-500">Fetching leases...</p>
+              </div>
+            ) : leases.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Activity className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="mt-4 text-lg font-medium text-gray-500">No active leases</p>
+                <p className="mt-2 text-sm text-gray-400">
+                  Your active leases will appear here
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Token</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>APR</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {leases.map((lease, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{lease.token}</TableCell>
+                      <TableCell>{lease.amount}</TableCell>
+                      <TableCell>{lease.apr + "%"}</TableCell>
+                      <TableCell>{lease.duration}</TableCell>
+                      <TableCell>{lease.status}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

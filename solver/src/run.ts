@@ -15,7 +15,7 @@ const SOLVER_MODULE_ABI = [
   "struct TokenWiseLeaseConfig {" +
     "address token," +
     "uint256 max_amount," +
-    "uint256 apr," +  
+    "uint256 apr," +
     "uint256 max_duration," +
     "}",
   "function getLeaseConfig(address sa, address token) public view returns (tuple(address token, uint256 max_amount, uint256 apr, uint256 max_duration))",
@@ -103,10 +103,10 @@ interface Lease {
 }
 
 interface Config {
-  token: string, 
-  amount: number,
-  apr: number,
-  max_duration: number
+  token: string;
+  amount: number;
+  apr: number;
+  max_duration: number;
 }
 
 const startLeases = async (
@@ -162,7 +162,10 @@ const fulfillLease = async (
   // some random amount for now
 
   try {
-    const approve = await tokenContract.approve(SOLVE_MODULE, ethers.parseUnits("1", 6));
+    const approve = await tokenContract.approve(
+      SOLVE_MODULE,
+      ethers.parseUnits("1", 6)
+    );
     let receipt = await approve.wait();
   } catch (err) {
     console.error("Error approving token", err);
@@ -171,8 +174,9 @@ const fulfillLease = async (
   try {
     let leasePayBackResp = await solveModuleContract.fulfillLease(
       leaseOwner,
-      leaseId, {
-        gasLimit: 1000000
+      leaseId,
+      {
+        gasLimit: 1000000,
       }
     );
 
@@ -227,33 +231,42 @@ const getAllLeases = async (provider: JsonRpcProvider, saAddress: string) => {
   );
   const leases = await solveModuleContract.getActiveLeases(saAddress);
   console.log("Leases", leases);
-  
 
   return leases;
   // transform these leases into lease object and send those for solving
 };
 
-const getLeaseConfig = async (provider: JsonRpcProvider, saAddress: string, tokenAddress: string): Promise<Config> => {
+const getLeaseConfig = async (
+  provider: JsonRpcProvider,
+  saAddress: string,
+  tokenAddress: string
+): Promise<Config> => {
   const { SOLVE_MODULE } = addresses;
   const solveModuleContract = new ethers.Contract(
     SOLVE_MODULE,
     SOLVER_MODULE_ABI,
     provider
   );
-  const leases = await solveModuleContract.getLeaseConfig(saAddress, tokenAddress);
+  const leases = await solveModuleContract.getLeaseConfig(
+    saAddress,
+    tokenAddress
+  );
   console.log("Leases", leases);
 
   const config: Config = {
     token: leases[0],
-    amount: Number(leases[1]),
+    amount: Number(leases[1]) / 1e18,
     apr: Number(leases[2]),
-    max_duration: Number(leases[3])
+    max_duration: Number(leases[3]),
   };
 
   return config;
-}
+};
 
-export const solve = async (tokenAmount: number, tokenAddress: string): Promise<String[]> => {
+export const solve = async (
+  tokenAmount: number,
+  tokenAddress: string
+): Promise<{ solSA: string[]; txHash: string }> => {
   const { USDC, LADDU, RUG_PULL } = addresses;
   const provider = new ethers.JsonRpcProvider(RPC_URL);
 
@@ -261,8 +274,8 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
 
   let smartAccountAddresses = [DEMO_SMART_ACCOUNT];
   let toAddresses = [signer.address];
-  let tokenAddresses = [USDC];
-  let tokenAmounts = [ethers.parseUnits("1", 6)];
+  let tokenAddresses = [tokenAddress];
+  let tokenAmounts = [ethers.parseUnits(tokenAmount.toString(), 18)];
 
   console.log(chalk.italic("Finding the most optimal leases...."));
   console.log(chalk.italic("Starting leases..."));
@@ -306,30 +319,39 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
 
   console.log(chalk.italic("Opting in leases..."));
 
-  // let receipt = await startLeases(
-  //   smartAccountAddresses,
-  //   tokenAddresses,
-  //   tokenAmounts,
-  //   toAddresses,
-  //   provider
-  // );
+  let receipt = await startLeases(
+    smartAccountAddresses,
+    tokenAddresses,
+    tokenAmounts,
+    toAddresses,
+    provider
+  );
 
-  // console.log("Start lease txn receipt", receipt);
+  console.log("Start lease txn receipt", receipt);
+  const txHash = receipt.hash;
 
   let rugpullLease = [];
   let ladduLease = [];
 
   for (let i = 0; i < smartAccountAddresses.length; i++) {
-    let leasesResp = await getLeaseConfig(provider, smartAccountAddresses[i], RUG_PULL);
+    let leasesResp = await getLeaseConfig(
+      provider,
+      smartAccountAddresses[i],
+      RUG_PULL
+    );
     rugpullLease.push({ leasesResp, saAddress: smartAccountAddresses[i] });
   }
 
   for (let i = 0; i < smartAccountAddresses.length; i++) {
-    let leasesResp = await getLeaseConfig(provider, smartAccountAddresses[i], LADDU);
+    let leasesResp = await getLeaseConfig(
+      provider,
+      smartAccountAddresses[i],
+      LADDU
+    );
     ladduLease.push({ leasesResp, saAddress: smartAccountAddresses[i] });
   }
 
-  rugpullLease.sort((a, b) => a.leasesResp.amount  - b.leasesResp.amount);
+  rugpullLease.sort((a, b) => a.leasesResp.amount - b.leasesResp.amount);
   ladduLease.sort((a, b) => a.leasesResp.amount - b.leasesResp.amount);
 
   console.log(rugpullLease);
@@ -337,30 +359,28 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
 
   let solSA = [];
 
-  if(tokenAddress === RUG_PULL) {
+  if (tokenAddress === RUG_PULL) {
     let totalFullfilledAmount = 0;
-     for(let i = 0; i < rugpullLease.length; i++) {
+    for (let i = 0; i < rugpullLease.length; i++) {
       totalFullfilledAmount += rugpullLease[i].leasesResp.amount;
       solSA.push(rugpullLease[i].saAddress);
       if (totalFullfilledAmount >= tokenAmount) break;
-     }
+    }
   }
 
-  if(tokenAddress === LADDU) {
+  if (tokenAddress === LADDU) {
     let totalFullfilledAmount = 0;
-     for(let i = 0; i < ladduLease.length; i++) {
+    for (let i = 0; i < ladduLease.length; i++) {
       totalFullfilledAmount += ladduLease[i].leasesResp.amount;
       solSA.push(ladduLease[i].saAddress);
       if (totalFullfilledAmount >= tokenAmount) break;
-     }
+    }
   }
-
 
   // interface LeaseId {
   //   leaseId: number;
   //   smartAccount: string;
   // }
-
 
   // sort leases
   // leases = leases.sort((a, b) => a.amount - b.amount);
@@ -369,9 +389,9 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
   // let saAddresses = [];
 
   // for (let lease of leases) {
-    // totalFullfilledAmount += lease.amount;
-    // saAddresses.push(lease.smartAccount);
-    // if (totalFullfilledAmount >= tokenAmount) break;
+  // totalFullfilledAmount += lease.amount;
+  // saAddresses.push(lease.smartAccount);
+  // if (totalFullfilledAmount >= tokenAmount) break;
   // }
 
   // for solver: swap usdc to usdt now a.k.a using lease here
@@ -396,7 +416,10 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
   console.log(chalk.italic("Solver using the leased funds to solve now..."));
   await new Promise((resolve) => setTimeout(resolve, 600));
 
-  return solSA;
+  return {
+    solSA: solSA,
+    txHash: txHash,
+  };
 };
 
 export const fullfillLease = async (leaseOwner: string, leaseId: number) => {
