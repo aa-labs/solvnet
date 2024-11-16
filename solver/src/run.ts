@@ -11,6 +11,7 @@ const SOLVER_MODULE_ABI = [
   "function startLeases(address[] calldata smartAccounts, address[] calldata tokens, uint256[] calldata amounts, address[] calldata tos) external returns (uint256[] memory leaseIds)",
   "function startLease(address smartAccount, address token, uint256 amount, address to) public returns (uint256 leaseId)",
   "function fulfillLease(address smartAccount, uint256 leaseId) external payable",
+  "function getActiveLeases(address sa) public view returns (uint256[] memory)",
   "enum LeaseStatus { None, Active, Fulfilled }",
 
   "struct Lease {" +
@@ -148,7 +149,7 @@ const fulfillLease = async (
   // some random amount for now
 
   try {
-    const approve = await tokenContract.approve(SOLVE_MODULE, 100);
+    const approve = await tokenContract.approve(SOLVE_MODULE, ethers.parseUnits("1", 6));
     let receipt = await approve.wait();
   } catch (err) {
     console.error("Error approving token", err);
@@ -157,7 +158,9 @@ const fulfillLease = async (
   try {
     let leasePayBackResp = await solveModuleContract.fulfillLease(
       leaseOwner,
-      leaseId
+      leaseId, {
+        gasLimit: 1000000
+      }
     );
 
     let receipt = await leasePayBackResp.wait();
@@ -179,16 +182,6 @@ const getLease = async (
     provider
   );
   const lease = await solveModuleContract.getLease(saAddress, leaseId);
-  console.log("Lease", lease);
-
-  //   struct Lease {
-  //     uint256 id;
-  //     address token;
-  //     uint256 amount;
-  //     uint256 startTime;
-  //     address leaser;
-  //     LeaseStatus status;
-  // }
 
   const getLeaseStatus = (status: number): string => {
     const statusMap: { [key: string]: string } = {
@@ -222,7 +215,49 @@ const getAllLeases = async (provider: JsonRpcProvider, saAddress: string) => {
   const leases = await solveModuleContract.getActiveLeases(saAddress);
   console.log("Leases", leases);
 
+  return leases;
   // transform these leases into lease object and send those for solving
+};
+
+const getLeasesFromReceipt = async (receipt: any, contract: ethers.Contract) => {
+  try {
+    // Get logs from receipt
+    const logs = receipt.logs;
+    
+    // Filter and parse LeaseStarted events
+    const leaseStartedEvents = logs
+      .filter((log: { topics: any; data: any; }) => {
+        // Filter logs that match your event's signature
+        try {
+          const parsed = contract.interface.parseLog({
+            topics: log.topics,
+            data: log.data
+          });
+          return parsed?.name === 'LeaseStarted';
+        } catch {
+          return false;
+        }
+      })
+      .map((log: { topics: any; data: any; }) => {
+        // Parse the log into a readable event
+        const parsed = contract.interface.parseLog({
+          topics: log.topics,
+          data: log.data
+        });
+        
+        // Return parsed event data
+        return {
+          event: 'LeaseStarted',
+          args: parsed?.args
+        };
+      });
+
+    console.log("Lease started events:", leaseStartedEvents);
+    return leaseStartedEvents;
+  } catch (error) {
+    console.error("Error parsing lease events:", error);
+    return [];
+  }
 };
 
 export const solve = async (tokenAmount: number): Promise<String[]> => {
@@ -288,41 +323,33 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
 
   // console.log("Start lease txn receipt", receipt);
 
-  // const leaseStartedEvents = receipt.events.filter(
-  //   (event: { event: string }) => event.event === "LeaseStarted"
-  // );
+  let leasesResp = await getAllLeases(provider, smartAccountAddresses[0]);
+  console.log(leasesResp);
 
-  // console.log("Lease started events", leaseStartedEvents);
+  leasesResp = leasesResp.map((id: any) => Number(id));
+  console.log(leasesResp);
 
-  // const leaseIds = leaseStartedEvents.map((event: any) => {
-  //   const { smartAccount, leaseId, _ } = event.args;
-  //   return {
-  //     smartAccount: smartAccount.toString(),
-  //     leaseId: leaseId.toString(),
-  //   };
-  // });
-
-  // console.log("LeaseIds", leaseIds);
-
+  interface LeaseId {
+    leaseId: number;
+    smartAccount: string;
+  }
+  
+  let leaseIds: LeaseId[] = leasesResp.map((id: any) => ({
+    leaseId: id,
+    smartAccount: DEMO_SMART_ACCOUNT
+  }));
+  
   //! demo
-  let leaseIds = [
-    {
-      leaseId: 1,
-      smartAccount: DEMO_SMART_ACCOUNT,
-    },
-    {
-      leaseId: 1,
-      smartAccount: DEMO_SMART_ACCOUNT,
-    },
-    // {
-    //   leaseId: 1,
-    //   smartAccount: DEMO_SMART_ACCOUNT,
-    // },
-    // {
-    //   leaseId: 1,
-    //   smartAccount: DEMO_SMART_ACCOUNT,
-    // },
-  ];
+  // let leaseIds = [
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: DEMO_SMART_ACCOUNT,
+  //   },
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: DEMO_SMART_ACCOUNT,
+  //   },
+  // ];
 
   let leases = [];
   for (let leaseId of leaseIds) {
