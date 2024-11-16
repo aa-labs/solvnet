@@ -149,19 +149,20 @@ contract DeployDeterministic is Script {
             stakingToken.mint(deployerAddress, TOKEN_AMT - balance);
         }
 
-        // Deploy SolverStaking
-        console2.log("Deploying SolverStaking");
-        bytes memory solverStakingCreationCode = abi.encodePacked(
-            vm.getCode("SolverStaking"), abi.encode(_getLayerZeroEndpoint(8453), address(stakingToken), OWNER)
-        );
-        solverStaking = SolverStaking(_deployWithSanityChecks(SOLVER_STAKING_SALT, solverStakingCreationCode));
-        console2.log("SolverStaking deployed at: ", address(solverStaking), "\n");
-
         // Deploy SolvNetModule
         console2.log("Deploying SolvNetModule");
         bytes memory solvNetModuleCreationCode = abi.encodePacked(vm.getCode("SolvNetModule"));
         solvNetModule = SolvNetModule(_deployWithSanityChecks(SOLV_NET_MODULE_SALT, solvNetModuleCreationCode));
         console2.log("SolvNetModule deployed at: ", address(solvNetModule), "\n");
+
+        // Deploy SolverStaking
+        console2.log("Deploying SolverStaking");
+        bytes memory solverStakingCreationCode = abi.encodePacked(
+            vm.getCode("SolverStaking"),
+            abi.encode(_getLayerZeroEndpoint(8453), address(stakingToken), OWNER, address(solvNetModule))
+        );
+        solverStaking = SolverStaking(_deployWithSanityChecks(SOLVER_STAKING_SALT, solverStakingCreationCode));
+        console2.log("SolverStaking deployed at: ", address(solverStaking), "\n");
 
         // Configure Solver Staking
         console2.log("Configuring Solver Staking");

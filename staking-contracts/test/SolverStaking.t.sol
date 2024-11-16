@@ -44,7 +44,7 @@ contract SolverStakingTest is Test {
 
         vm.startPrank(owner);
         // Deploy staking contract
-        staking = new SolverStaking(endpoint, address(stakingToken), owner);
+        staking = new SolverStaking(endpoint, address(stakingToken), owner, address(0));
 
         // Mint tokens to solver
         stakingToken.mint(solver, INITIAL_BALANCE);
