@@ -28,10 +28,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { ethers } from "ethers";
+
 const Solver = () => {
   const [selectedToken, setSelectedToken] = useState("ETH");
   const [stakeAmount, setStakeAmount] = useState("");
   const [unstakeAmount, setUnstakeAmount] = useState("");
+
 
   // Mock data (replace with actual data fetching logic)
   const totalStaked = "1000 ETH";
@@ -40,8 +43,23 @@ const Solver = () => {
   const networkStatus = "Active";
   const fraudProofStatus = "Active";
 
-  const handleStake = () => {
-    // Implement staking logic
+  const STAKING_CONTRACT_ADDRESS = "0x123456";
+  const STAKING_CONTRACT_ABI = [
+    "function stake(uint256 _amount) external"
+  ];
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+
+  const handleStake = async () => {
+
+    const stakingContract = new ethers.Contract(
+      STAKING_CONTRACT_ADDRESS,
+      STAKING_CONTRACT_ABI,
+      provider
+    );
+
+    const amount = ethers.utils.parseEther(stakeAmount);
+    await stakingContract.stake(amount);
+
     console.log("Staking", stakeAmount, selectedToken);
   };
 
