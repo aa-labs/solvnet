@@ -17,6 +17,7 @@ contract SolvNetModule is ERC7579ExecutorBase {
         address token;
         uint256 amount;
         uint256 startTime;
+        address leaser;
         LeaseStatus status;
     }
 
@@ -122,16 +123,21 @@ contract SolvNetModule is ERC7579ExecutorBase {
         }
         // Handle ERC20 transfer
         else {
-            // Create calldata for ERC20 transferFrom
-            bytes memory callData = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
+            if (address(from).code.length == 0) {
+                IERC20(token).transferFrom(from, to, amount);
+                return true;
+            } else {
+                // Create calldata for ERC20 transferFrom
+                bytes memory callData = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
 
-            bytes memory result = _execute({account: from, to: token, value: 0, data: callData});
+                bytes memory result = _execute({account: from, to: token, value: 0, data: callData});
 
-            // Check if transfer was successful
-            if (result.length > 0) {
-                return abi.decode(result, (bool));
+                // Check if transfer was successful
+                if (result.length > 0) {
+                    return abi.decode(result, (bool));
+                }
+                return true; // Some tokens don't return a value
             }
-            return true; // Some tokens don't return a value
         }
     }
 
@@ -140,9 +146,11 @@ contract SolvNetModule is ERC7579ExecutorBase {
         address[] calldata tokens,
         uint256[] calldata amounts,
         address[] calldata tos
-    ) external {
+    ) external returns (uint256[] memory leaseIds) {
+        leaseIds = new uint256[](smartAccounts.length);
+
         for (uint256 i = 0; i < smartAccounts.length; i++) {
-            startLease(smartAccounts[i], tokens[i], amounts[i], tos[i]);
+            leaseIds[i] = startLease(smartAccounts[i], tokens[i], amounts[i], tos[i]);
         }
     }
 
@@ -171,6 +179,7 @@ contract SolvNetModule is ERC7579ExecutorBase {
         lease.amount = amount;
         lease.startTime = block.timestamp;
         lease.status = LeaseStatus.Active;
+        lease.leaser = to;
 
         activeLeases[smartAccount].push(leaseId);
         config.max_amount -= amount;
@@ -259,11 +268,11 @@ contract SolvNetModule is ERC7579ExecutorBase {
      * @param account The user's smart account address
      * @param leaseId The lease ID to check
      */
-    function checkLeaseExpiry(address account, uint256 leaseId) external view returns (bool) {
+    function checkLeaseExpiry(address account, uint256 leaseId) external view returns (bool, Lease memory) {
         Lease storage lease = leases[account][leaseId];
         TokenWiseLeaseConfig storage config = leaseConfigs[account][lease.token];
 
-        return lease.status == LeaseStatus.Active && block.timestamp >= lease.startTime + config.max_duration;
+        return (lease.status == LeaseStatus.Active && block.timestamp >= lease.startTime + config.max_duration, lease);
     }
 
     /**

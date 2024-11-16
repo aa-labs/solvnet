@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import "forge-std/Test.sol";
 import "modulekit/ModuleKit.sol";
-import "../src/SolvModule.sol";
+import "../src/SolvNetModule.sol";
 import "modulekit/external/ERC7579.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -23,13 +23,14 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
 
     // Test addresses
     address leaseCreator;
+    address alice;
 
     // Foundry fork id for fork testing
     uint256 mainnetFork;
 
     function setUp() public {
         // Create the fork
-        string memory mainnetUrl = vm.envString("MAINNET_RPC_URL");
+        string memory mainnetUrl = vm.envString("RPC_URL_1");
         mainnetFork = vm.createFork(mainnetUrl);
         vm.selectFork(mainnetFork);
         vm.rollFork(19_274_877);
@@ -46,6 +47,8 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
         // Setup test addresses
         leaseCreator = makeAddr("leaseCreator");
         vm.label(leaseCreator, "LeaseCreator");
+        alice = makeAddr("alice");
+        vm.label(alice, "Alice");
 
         // Create the SolvModule
         solvModule = new SolvNetModule();
@@ -57,6 +60,11 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
         deal(address(testToken), instance.account, 1000e18);
         deal(address(testToken2), instance.account, 1000e18);
         vm.label(address(instance.account), "Account");
+
+        vm.deal(instance.account, 10 ether);
+        deal(address(testToken), alice, 1000e18);
+        deal(address(testToken2), alice, 1000e18);
+        vm.label(address(alice), "Account");
 
         // Create initial lease config
         SolvNetModule.TokenWiseLeaseConfig memory config = SolvNetModule.TokenWiseLeaseConfig({
@@ -74,6 +82,8 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
             module: address(solvModule),
             data: abi.encode(configs)
         });
+        vm.prank(alice);
+        solvModule.updateLeaseConfig(address(testToken), config);
     }
 
     function test_moduleInstallation() public {
@@ -197,7 +207,7 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
         vm.warp(block.timestamp + 31 days);
 
         // Check expiry
-        bool isExpired = solvModule.checkLeaseExpiry(instance.account, 0);
+        (bool isExpired,) = solvModule.checkLeaseExpiry(instance.account, 0);
         assertTrue(isExpired);
 
         // Verify lease status using getter
@@ -235,6 +245,35 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
         assertEq(lease.token, address(0));
         assertEq(lease.amount, leaseAmount);
         assertEq(uint8(lease.status), uint8(SolvNetModule.LeaseStatus.Active));
+    }
+
+    function test_startLease_eoa() public {
+        vm.prank(alice);
+        testToken.approve(address(solvModule), type(uint256).max);
+
+        uint256 initialBalance = testToken.balanceOf(alice);
+        uint256 initialCreatorBalance = testToken.balanceOf(leaseCreator);
+        uint256 leaseAmount = 50e18;
+
+        solvModule.startLease(alice, address(testToken), leaseAmount, leaseCreator);
+
+        // Verify token transfer
+        assertEq(testToken.balanceOf(alice), initialBalance - leaseAmount);
+        assertEq(testToken.balanceOf(leaseCreator), initialCreatorBalance + leaseAmount);
+
+        // Verify lease details using getter
+        SolvNetModule.Lease memory lease = solvModule.getLease(alice, 0);
+
+        assertEq(lease.id, 0);
+        assertEq(lease.token, address(testToken));
+        assertEq(lease.amount, leaseAmount);
+        assertEq(lease.startTime, block.timestamp);
+        assertEq(uint8(lease.status), uint8(SolvNetModule.LeaseStatus.Active));
+
+        // Verify active leases using getter
+        uint256[] memory activeLeases = solvModule.getActiveLeases(alice);
+        assertEq(activeLeases.length, 1);
+        assertEq(activeLeases[0], 0);
     }
 
     function test_RevertWhen_InvalidRecipient() public {
