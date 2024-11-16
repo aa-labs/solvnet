@@ -11,7 +11,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.post("/api/solve", async (req: Request, res: Response) => {
   let tokenAmount = req.body.tokenAmount;
-  let saAddresses = await solve(tokenAmount);
+  let tokenAddress = req.body.tokenAddress;
+  let saAddresses = await solve(tokenAmount, tokenAddress);
   res.json({
     saAddresses,
   });
