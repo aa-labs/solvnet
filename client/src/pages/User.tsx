@@ -23,10 +23,10 @@ import { Wallet, Activity, Settings, Loader2 } from "lucide-react";
 import { ethers } from "ethers";
 import { formatSeconds } from "@/lib/utils";
 import { useSmartAccount } from "@/hooks/useSmartAccount";
-import { Hex } from "viem";
-import SolverStakingAbi from "@/abi/solverstaking.json";
+import { Hex, parseEther } from "viem";
+import SolvNetModuleAbi from "@/abi/SolvNet.json";
+import NexusAbi from "@/abi/nexus.json";
 import { base } from "viem/chains";
-import { UserOpReceipt } from "@biconomy/sdk";
 
 const RPC_URL =
   "https://base-mainnet.g.alchemy.com/v2/7h2x2EBIOQzBvKSktrewDIjd4kJIigyG";
@@ -145,7 +145,7 @@ const User = () => {
       const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
       const solvNetModuleContract = new ethers.Contract(
         MODULE_ADDRESS,
-        SolverStakingAbi.abi,
+        SolvNetModuleAbi.abi,
         provider
       );
 
@@ -153,6 +153,7 @@ const User = () => {
       const activeLeaseIds = await solvNetModuleContract.getActiveLeases(
         accountAddress
       );
+      console.log("herr", activeLeaseIds);
 
       let leasesData: Lease[] = [];
 
@@ -210,8 +211,8 @@ const User = () => {
     e.preventDefault();
     setIsConfigLoading(true);
     try {
-      if (!nexusClient) {
-        console.error("Nexus client is not initialized.");
+      if (!nexusClient || !accountAddress) {
+        console.error("Nexus client or account address is not initialized.");
         return;
       }
 
@@ -221,7 +222,9 @@ const User = () => {
           token:
             config.tokenType === "ETH"
               ? ethers.constants.AddressZero
-              : TOKEN_ADDRESSES[config.tokenType as keyof typeof TOKEN_ADDRESSES],
+              : TOKEN_ADDRESSES[
+                  config.tokenType as keyof typeof TOKEN_ADDRESSES
+                ],
           max_amount: ethers.utils.parseUnits(
             config.leaseAmount,
             TOKEN_DECIMALS[config.tokenType as keyof typeof TOKEN_DECIMALS]
@@ -245,27 +248,49 @@ const User = () => {
         },
       });
 
+      console.log("isEnabled", isEnabled);
       if (!isEnabled) {
-        // install module with the initial configuration
-        const userOpReceipt: UserOpReceipt = await nexusClient.installModule({
-          module: {
-            address: MODULE_ADDRESS as Hex,
-            type: "executor",
-            initData: initData as Hex,
-          },
-        });
+        // Install the module by calling `installModule` on the smart account
+        // Create an interface for the smart account (Nexus contract)
+        const nexusInterface = new ethers.utils.Interface(NexusAbi.abi);
+        // Encode the function data for `installModule`
+        const installModuleData = nexusInterface.encodeFunctionData(
+          "installModule",
+          [
+            2, //executor
+            MODULE_ADDRESS,
+            initData,
+          ]
+        );
 
-        console.log("Module installation transaction:", userOpReceipt);
+        // Send the transaction to the smart account
+        const hash = await nexusClient.sendTransaction({
+          to: accountAddress as Hex, // Sending to the smart account address
+          data: installModuleData as Hex,
+          value: 0n,
+          chain: base,
+        });
+        console.log("Module installation transaction:", hash);
+
+        const receipt = await nexusClient.waitForTransactionReceipt({ hash });
+        console.log("Module installation receipt:", receipt);
       } else {
-        // update config -> updateLeaseConfig on module
-        const updateData = new ethers.utils.Interface(
-          SolverStakingAbi.abi
-        ).encodeFunctionData("updateLeaseConfig", [
-          config.tokenType === "ETH"
-            ? ethers.constants.AddressZero
-            : TOKEN_ADDRESSES[config.tokenType as keyof typeof TOKEN_ADDRESSES],
-          configData[0],
-        ]);
+        // Update config -> call `updateLeaseConfig` on the module
+        const moduleInterface = new ethers.utils.Interface(
+          SolvNetModuleAbi.abi
+        );
+
+        const updateData = moduleInterface.encodeFunctionData(
+          "updateLeaseConfig",
+          [
+            config.tokenType === "ETH"
+              ? ethers.constants.AddressZero
+              : TOKEN_ADDRESSES[
+                  config.tokenType as keyof typeof TOKEN_ADDRESSES
+                ],
+            configData[0],
+          ]
+        );
 
         const tx = await nexusClient.sendTransaction({
           to: MODULE_ADDRESS as Hex,
@@ -308,7 +333,7 @@ const User = () => {
       const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
       const solvNetModuleContract = new ethers.Contract(
         MODULE_ADDRESS,
-        SolverStakingAbi.abi,
+        SolvNetModuleAbi.abi,
         provider
       );
 
@@ -527,7 +552,11 @@ const User = () => {
                 </Select>
               </div>
               <div className="flex space-x-2">
-                <Button type="submit" className="flex-1" disabled={isConfigLoading}>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={isConfigLoading}
+                >
                   {isConfigLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

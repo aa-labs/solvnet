@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Activity,
@@ -44,53 +43,39 @@ const SolvNetDashboard = () => {
     {
       id: 1,
       name: "Alpha Solver",
-      staked: "100,000",
-      accessibleLiquidity: "1,000,000",
-      performance: 98.5,
-      activeLeases: 12,
+      staked: "0.01",
+      accessibleLiquidity: "300",
+      performance: 100,
+      activeLeases: 2,
     },
     {
       id: 2,
       name: "Beta Network",
-      staked: "75,000",
-      accessibleLiquidity: "562,500",
-      performance: 97.8,
+      staked: "0.01",
+      accessibleLiquidity: "100",
+      performance: 100,
       activeLeases: 8,
     },
   ];
 
+  const TOKEN_ADDRESSES = {
+    ETH: "0x0000000000000000000000000000000000000000",
+    USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    USDT: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+  };
+
   const smartAccounts = [
     {
-      id: 1,
-      name: "Safe Wallet A",
-      availableTokens: ["USDC"],
-      leaseAmount: "5",
-      apr: 4.5,
-      duration: "7 days",
+      address: "0x0197d7FaFCA118Bc91f6854B9A2ceea94E676585",
+      availableTokens: [TOKEN_ADDRESSES.USDC],
     },
     {
-      id: 2,
-      name: "Safe Wallet B",
-      availableTokens: ["DAI", "USDT"],
-      leaseAmount: "180,000",
-      apr: 5.2,
-      duration: "14 days",
+      address: "0x0197d7FaFCA118Bc91f6854B9A2ceea94E676585",
+      availableTokens: [TOKEN_ADDRESSES.USDC],
     },
     {
-      id: 3,
-      name: "Safe Wallet B",
-      availableTokens: ["DAI", "USDT"],
-      leaseAmount: "180,000",
-      apr: 5.2,
-      duration: "14 days",
-    },
-    {
-      id: 4,
-      name: "Safe Wallet B",
-      availableTokens: ["DAI", "USDT"],
-      leaseAmount: "180,000",
-      apr: 5.2,
-      duration: "14 days",
+      address: "0x0197d7FaFCA118Bc91f6854B9A2ceea94E676585",
+      availableTokens: [TOKEN_ADDRESSES.USDT],
     },
   ];
 
@@ -125,19 +110,33 @@ const SolvNetDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {smartAccounts.map((account) => (
+                  {smartAccounts.map((account, index) => (
                     <div
-                      key={account.id}
+                      key={index}
                       className="p-4 bg-white rounded-lg border hover:shadow-lg transition-shadow"
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-medium">{account.name}</h3>
+                          <h3 className="font-medium">
+                            {account.address.slice(0, 6)}...
+                            {account.address.slice(-4)}
+                          </h3>
                           <p className="text-sm text-gray-500">
-                            Available: {account.availableTokens.join(", ")}
+                            Available:{" "}
+                            {account.availableTokens.map((token, index) => {
+                              const tokenKey = Object.keys(
+                                TOKEN_ADDRESSES
+                              ).find(
+                                (key) =>
+                                  TOKEN_ADDRESSES[
+                                    key as keyof typeof TOKEN_ADDRESSES
+                                  ] === token
+                              );
+                              return <span key={index}>{tokenKey}</span>;
+                            })}
                           </p>
                           <p className="text-sm text-gray-600 mt-2">
-                            Lease Amount: {account.leaseAmount} USDC
+                            Lease Amount: {account.leaseAmount ?? 0} USDC
                           </p>
                         </div>
                         <div className="text-right">
