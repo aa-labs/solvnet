@@ -23,23 +23,23 @@ import { Wallet, Activity, Settings, Loader2 } from "lucide-react";
 import { ethers } from "ethers";
 import { formatSeconds } from "@/lib/utils";
 import { useSmartAccount } from "@/hooks/useSmartAccount";
-import { Hex, parseEther } from "viem";
+import { Hex } from "viem";
 import SolvNetModuleAbi from "@/abi/SolvNet.json";
 import NexusAbi from "@/abi/nexus.json";
 import { base } from "viem/chains";
 
 const RPC_URL =
   "https://base-mainnet.g.alchemy.com/v2/7h2x2EBIOQzBvKSktrewDIjd4kJIigyG";
-const MODULE_ADDRESS = "0x26898BeCcAE66D8ae108C1bE2adE5328D139ec16";
+const MODULE_ADDRESS = "0x78c98F914f10a3C7A2FEbB677d76bE83EfB6BB13";
 const TOKEN_ADDRESSES = {
   ETH: ethers.constants.AddressZero,
-  USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-  USDT: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+  MEME: "0xA72Df9090233Bf229B39Ea87Ec6b92501dF6d7C2",
+  LADDU: "0x6845533D4be0A2988E49C99cDe9e1ba677344F5a",
 };
 const TOKEN_DECIMALS = {
   ETH: 18,
-  USDC: 6,
-  USDT: 6,
+  MEME: 18,
+  LADDU: 18,
 };
 
 interface TokenBalance {
@@ -79,29 +79,27 @@ const User = () => {
 
     setIsLoading(true);
     try {
-      // Example tokens - Base network tokens
       const tokens = [
         {
           address: TOKEN_ADDRESSES.ETH, // ETH
           symbol: "ETH",
           name: "Ethereum",
           logo: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
-          decimals: 18,
+          decimals: TOKEN_DECIMALS.ETH,
         },
         {
-          address: TOKEN_ADDRESSES.USDC, // USDC on Base
-          symbol: "USDC",
-          name: "USD Coin",
-          logo: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
-          decimals: 6,
+          address: TOKEN_ADDRESSES.MEME,
+          symbol: "MEME",
+          name: "Rug Token",
+          logo: "https://assets.coingecko.com/coins/images/33566/standard/dogwifhat.jpg",
+          decimals: TOKEN_DECIMALS.MEME,
         },
-        // usdt
         {
-          address: TOKEN_ADDRESSES.USDT,
-          symbol: "USDT",
-          name: "Tether",
-          logo: "https://assets.coingecko.com/coins/images/325/small/Tether-logo.png",
-          decimals: 6,
+          address: TOKEN_ADDRESSES.LADDU,
+          symbol: "LADDU",
+          name: "Laddus",
+          logo: "https://assets.coingecko.com/coins/images/12424/standard/RSFOmQ.png",
+          decimals: TOKEN_DECIMALS.LADDU,
         },
       ];
 
@@ -233,6 +231,7 @@ const User = () => {
           max_duration: parseInt(config.leaseDuration) * 24 * 60 * 60, // Convert days to seconds
         },
       ];
+      console.log("configData", configData);
 
       const initData = new ethers.utils.AbiCoder().encode(
         [
@@ -293,10 +292,12 @@ const User = () => {
         );
 
         const tx = await nexusClient.sendTransaction({
-          to: MODULE_ADDRESS as Hex,
-          data: updateData as Hex,
-          value: 0n,
-          chain: base,
+          calls: [
+            {
+              to: MODULE_ADDRESS as Hex,
+              data: updateData as Hex,
+            },
+          ],
         });
 
         console.log("Configuration update transaction:", tx);
@@ -337,12 +338,10 @@ const User = () => {
         provider
       );
 
-      // Use the selected token type from the config state
       const tokenAddress =
         config.tokenType === "ETH"
           ? ethers.constants.AddressZero
           : TOKEN_ADDRESSES[config.tokenType as keyof typeof TOKEN_ADDRESSES];
-
       // Fetch the lease configuration
       const leaseConfig = await solvNetModuleContract.getLeaseConfig(
         accountAddress,
@@ -372,6 +371,7 @@ const User = () => {
     if (accountAddress) {
       fetchBalances(accountAddress);
       fetchLeases();
+      fetchPreviousState();
     }
   }, [accountAddress, config.tokenType]);
 
@@ -517,8 +517,8 @@ const User = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ETH">ETH</SelectItem>
-                    <SelectItem value="USDC">USDC</SelectItem>
-                    <SelectItem value="DAI">DAI</SelectItem>
+                    <SelectItem value="MEME">MEME</SelectItem>
+                    <SelectItem value="LADDU">LADDU</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

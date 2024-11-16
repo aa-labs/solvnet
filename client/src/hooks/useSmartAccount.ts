@@ -5,7 +5,7 @@ import { base } from "viem/chains";
 import { http } from "viem";
 
 export const useSmartAccount = () => {
-  const { logout } = usePrivy();
+  const { logout, authenticated } = usePrivy();
   const { wallets } = useWallets();
   const [nexusClient, setNexusClient] = useState<NexusClient | null>(null);
   const [accountAddress, setAccountAddress] = useState<string | null>(null);
@@ -19,8 +19,7 @@ export const useSmartAccount = () => {
 
   useEffect(() => {
     const initAccount = async () => {
-      const bundlerUrl =
-        "https://bundler.biconomy.io/api/v3/8453/abc";
+      const bundlerUrl = "https://bundler.biconomy.io/api/v3/8453/abc";
       const client = await wallets[0].getEthereumProvider();
 
       try {
@@ -39,8 +38,8 @@ export const useSmartAccount = () => {
         console.log(error);
       }
     };
-    if (wallets.length > 0) initAccount();
-  }, [wallets]);
+    if (wallets.length > 0 && authenticated) initAccount();
+  }, [wallets, authenticated]);
 
   return { accountAddress, logoutSmartAccount, nexusClient };
 };
