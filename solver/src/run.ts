@@ -26,8 +26,6 @@ export const solve = async () => {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
 
     const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
-    
-
     // loop over multiple chains and lease tokens over diff chains
 
     // for solver: swap usdc to usdt now
