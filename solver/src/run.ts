@@ -200,7 +200,7 @@ export const solve = async () => {
   const attestationData = await readStream(attestationReportResp.body);
   console.log("Attestation report", attestationData);
 
-  //! TODO: we need request attestation here and verify it
+  //! TODO: we need to request attestation here and verify it
   console.log("Attestation verification result can be found here ", `${TEE_EXPLORER}/${VERIFICATION_HASH}`);
 
   // for solver: swap usdc to usdt now a.k.a using lease here
