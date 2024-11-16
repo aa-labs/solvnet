@@ -19,6 +19,22 @@ const ERC20_ABI = [
 ];
 
 const MATCHER_BASE_URL = "http://localhost:3000";
+const TEE_EXPLORER = "https://ra-quote-explorer.vercel.app/reports";
+const VERIFICATION_HASH = "a03404f3b9ff15461d4e907f4f4c8c203875c494bf50c71c5659517c18805961";
+
+const readStream = async (stream: any) => {
+    const reader = stream.getReader();
+    let result = '';
+    
+    while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        result += new TextDecoder().decode(value);
+    }
+    
+    return result;
+}
+
 
 const demoSolverRequests = [
     {
@@ -173,6 +189,19 @@ export const solve = async () => {
   });
 
   console.log("Optimal lease for solver", response);
+
+  const attestationReportResp = await fetch(`${MATCHER_BASE_URL}/api/remoteAttestation`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const attestationData = await readStream(attestationReportResp.body);
+  console.log("Attestation report", attestationData);
+
+  //! TODO: we need request attestation here and verify it
+  console.log("Attestation verification result can be found here ", `${TEE_EXPLORER}/${VERIFICATION_HASH}`);
 
   // for solver: swap usdc to usdt now a.k.a using lease here
   const uniswapContract = new ethers.Contract(UNISWAP, Uniswapabi.abi, signer);
