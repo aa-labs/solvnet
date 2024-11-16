@@ -119,8 +119,10 @@ function findOptimalMatches(
   return matches;
 }
 
-export async function GET() {
-  const optimalMatches = findOptimalMatches(userLeaseRequests, solverRequests);
+export async function POST(request: Request) {
+  const req = await request.json();
+  console.log("Requests", req);
+  const optimalMatches = findOptimalMatches(req.userLeaseRequests, req.solverRequests);
   console.log("Optimal matches:", optimalMatches);
 
   return Response.json({
