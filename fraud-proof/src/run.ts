@@ -7,10 +7,10 @@ import cron from "node-cron";
 dotenv.config();
 
 // Configure the RPC provider and contract details
-const RPC_URL = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"; // Replace with your RPC URL
+const RPC_URL = "https://base-mainnet.g.alchemy.com/v2/7h2x2EBIOQzBvKSktrewDIjd4kJIigyG"; // Replace with your RPC URL
 const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
-const STAKING_CONTRACT_ADDRESS = "0x1547FFb043F7C5BDe7BaF3A03D1342CCD8211a28" ; // Replace with your staking contract address
+const STAKING_CONTRACT_ADDRESS = "0xd75f1992708016d4a28b6b74CEf9CFa18A29A575" ; // Replace with your staking contract address
 const STAKING_CONTRACT_ABI = [ 
   "function initiateSolverSlashing(address _smartAccount, uint32 _targetChainId, uint256 _leaseId) external payable",
 ];
@@ -49,12 +49,12 @@ const scheduleSlashChecks = () => {
   const task = cron.schedule('*/3 * * * * *', async () => {
     loader.start();
 
-    loader.succeed(chalk.yellow("Checking slashing..."));
+    loader.succeed(chalk.yellow("Checking for slashing..."));
 
     for (let i = 0; i < saAddresses.length; i++) {
       const saAddress = saAddresses[i];
       try {
-        let slashTxn = await stakingContract.initiateSolverSlashing(saAddress, arbitrumChainId, leaseId);
+        let slashTxn = await stakingContract.initiateSolverSlashing(saAddress, arbitrumChainId, leaseId, { gasLimit: 1000000 });
         let receipt = await slashTxn.wait();
       } catch (error) {
         console.log(error);

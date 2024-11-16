@@ -272,7 +272,7 @@ export const solve = async (
 
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
 
-  let smartAccountAddresses = [DEMO_SMART_ACCOUNT];
+  let smartAccountAddresses = [DEMO_SMART_ACCOUNT, "0x8264064B0568f48ea884b21aEfE131B09314197e", "0x6845533D4be0A2988E49C99cDe9e1ba677344F5a", ""];
   let toAddresses = [signer.address];
   let tokenAddresses = [tokenAddress];
   let tokenAmounts = [ethers.parseUnits(tokenAmount.toString(), 18)];
@@ -363,6 +363,7 @@ export const solve = async (
     let totalFullfilledAmount = 0;
     for (let i = 0; i < rugpullLease.length; i++) {
       totalFullfilledAmount += rugpullLease[i].leasesResp.amount;
+      console.log(totalFullfilledAmount);
       solSA.push(rugpullLease[i].saAddress);
       if (totalFullfilledAmount >= tokenAmount) break;
     }
@@ -372,6 +373,7 @@ export const solve = async (
     let totalFullfilledAmount = 0;
     for (let i = 0; i < ladduLease.length; i++) {
       totalFullfilledAmount += ladduLease[i].leasesResp.amount;
+      console.log(totalFullfilledAmount);
       solSA.push(ladduLease[i].saAddress);
       if (totalFullfilledAmount >= tokenAmount) break;
     }

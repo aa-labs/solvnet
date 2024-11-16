@@ -1,4 +1,6 @@
 # SolvNet
+![image](https://github.com/user-attachments/assets/f334c393-6053-437e-adb0-d9bad446fb03)
+
 
 A decentralized module and network enabling users to delegate idle funds in smart accounts to solvers through a secure staking mechanism. Solvers gain access to enhanced liquidity for facilitating transactions, while users earn returns by leasing their funds to the network.
 
