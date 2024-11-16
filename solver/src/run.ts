@@ -3,12 +3,26 @@ import Uniswapabi from "../abi/UniswapSolver.json";
 import addresses from "../address.json";
 import { RPC_URL } from "./config";
 import dotenv from "dotenv";
+import chalk from "chalk";
 
 dotenv.config();
 
 const SOLVER_MODULE_ABI = [
-  "function startLeases( address[] calldata smartAccounts, address[] calldata tokens, uint256[] calldata amounts, address[] calldata tos) external",
+  "function startLeases(address[] calldata smartAccounts, address[] calldata tokens, uint256[] calldata amounts, address[] calldata tos) external returns (uint256[] memory leaseIds)",
+  "function startLease(address smartAccount, address token, uint256 amount, address to) public returns (uint256 leaseId)",
   "function fulfillLease(address smartAccount, uint256 leaseId) external payable",
+  "enum LeaseStatus { None, Active, Fulfilled }",
+
+  "struct Lease {" +
+    "uint256 id," +
+    "address token," +
+    "uint256 amount," +
+    "uint256 startTime," +
+    "address leaser," +
+    "uint8 status" +
+    "}",
+
+  "function getLease(address sa, uint256 leaseId) public view returns (tuple(uint256 id, address token, uint256 amount, uint256 startTime, address leaser, uint8 status))",
 ];
 
 const ERC20_ABI = [
@@ -100,7 +114,10 @@ const startLeases = async (
       saAddress,
       tokenAddresses,
       tokenAmounts,
-      toAddresses
+      toAddresses,
+      {
+        gasLimit: 1000000,
+      }
     );
 
     let receipt = await leaseFundsResp.wait();
@@ -155,14 +172,13 @@ const getLease = async (
   provider: JsonRpcProvider
 ) => {
   const { SOLVE_MODULE } = addresses;
-  const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
   const solveModuleContract = new ethers.Contract(
     SOLVE_MODULE,
     SOLVER_MODULE_ABI,
     provider
   );
-  // const lease = await solveModuleContract.getLease(saAddress, leaseId);
-  // console.log("Lease", lease);
+  const lease = await solveModuleContract.getLease(saAddress, leaseId);
+  console.log("Lease", lease);
 
   //   struct Lease {
   //     uint256 id;
@@ -208,65 +224,8 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
   let tokenAddresses = [USDC];
   let tokenAmounts = [ethers.parseUnits("1", 6)];
 
-  let receipt = await startLeases(smartAccountAddresses, tokenAddresses, tokenAmounts, toAddresses, provider);
-
-  console.log("Start lease txn receipt", receipt);
-
-  const leaseStartedEvents = receipt.events.filter(
-    (event: { event: string }) => event.event === "LeaseStarted"
-  );
-
-  console.log("Lease started events", leaseStartedEvents);
-
-  const leaseIds = leaseStartedEvents.map((event: any) => {
-    const { smartAccount, leaseId, _ } = event.args;
-    return {
-      smartAccount: smartAccount.toString(),
-      leaseId: leaseId.toString(),
-    };
-  });
-
-  console.log("LeaseIds", leaseIds);
-
-  //! demo
-  // let leaseIds = [
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: "0x124",
-  //   },
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: "0x124",
-  //   },
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: "0x124",
-  //   },    
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: "0x124",
-  //   }
-  // ];
-
-  let leases = [];
-  for (let leaseId of leaseIds) {
-    const lease = await getLease(leaseId.smartAccount, leaseId.leaseId, provider);
-    leases.push(lease);
-  }
-
-  console.log("Fetched leaseIds", leaseIds);
-
-  // sort leases
-  leases = leases.sort((a, b) => a.amount - b.amount);
-
-  let totalFullfilledAmount = 0;
-  let saAddresses = [];
-
-  for (let lease of leases) {
-    totalFullfilledAmount += lease.amount;
-    saAddresses.push(lease.smartAccount);
-    if(totalFullfilledAmount >= tokenAmount) break;
-  }
+  console.log(chalk.italic("Finding the most optimal leases...."));
+  console.log(chalk.italic("Starting leases..."));
 
   // fetch active leases and find the one which matches the solver intent
   const response = await fetch(`${MATCHER_BASE_URL}/api/getOptimalMatches`, {
@@ -292,14 +251,90 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
     }
   );
 
+  console.log(chalk.green("Fetched optimal leases from TEE matching engine"));
+
   const attestationData = await readStream(attestationReportResp.body);
   console.log("Attestation report", attestationData);
+
+  console.log(chalk.green("Verified attestation report!!"));
 
   //! TODO: we need to request attestation here and verify it
   console.log(
     "Attestation verification result can be found here ",
     `${TEE_EXPLORER}/${VERIFICATION_HASH}`
   );
+
+  console.log(chalk.italic("Opting leases..."));
+
+  let receipt = await startLeases(
+    smartAccountAddresses,
+    tokenAddresses,
+    tokenAmounts,
+    toAddresses,
+    provider
+  );
+
+  // console.log("Start lease txn receipt", receipt);
+
+  const leaseStartedEvents = receipt.events.filter(
+    (event: { event: string }) => event.event === "LeaseStarted"
+  );
+
+  console.log("Lease started events", leaseStartedEvents);
+
+  const leaseIds = leaseStartedEvents.map((event: any) => {
+    const { smartAccount, leaseId, _ } = event.args;
+    return {
+      smartAccount: smartAccount.toString(),
+      leaseId: leaseId.toString(),
+    };
+  });
+
+  // console.log("LeaseIds", leaseIds);
+
+  //! demo
+  // let leaseIds = [
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: DEMO_SMART_ACCOUNT,
+  //   },
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: DEMO_SMART_ACCOUNT,
+  //   },
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: DEMO_SMART_ACCOUNT,
+  //   },
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: DEMO_SMART_ACCOUNT,
+  //   },
+  // ];
+
+  let leases = [];
+  for (let leaseId of leaseIds) {
+    const lease = await getLease(
+      leaseId.smartAccount,
+      leaseId.leaseId,
+      provider
+    );
+    leases.push(lease);
+  }
+
+  console.log("Fetched leaseIds", leaseIds);
+
+  // sort leases
+  leases = leases.sort((a, b) => a.amount - b.amount);
+
+  let totalFullfilledAmount = 0;
+  let saAddresses = [];
+
+  for (let lease of leases) {
+    totalFullfilledAmount += lease.amount;
+    saAddresses.push(lease.smartAccount);
+    if (totalFullfilledAmount >= tokenAmount) break;
+  }
 
   // for solver: swap usdc to usdt now a.k.a using lease here
   // const uniswapContract = new ethers.Contract(UNISWAP, Uniswapabi.abi, signer);
@@ -318,17 +353,20 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
   // console.log("Swap contract response", swapResp);
 
   // wait for 1 min
-  console.log("Solver solving...");
+  console.log(chalk.italic("Opted in..."));
+
+  console.log(chalk.italic("Solver using the leased funds to solve now..."));
   await new Promise((resolve) => setTimeout(resolve, 600));
 
-  // hardcoded saAddresses for now
   return saAddresses;
 };
 
 export const fullfillLease = async (leaseOwner: string, leaseId: number) => {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   try {
+    console.log(chalk.yellow("Fulfilling lease..."));
     await fulfillLease(leaseOwner, leaseId, provider);
+    console.log(chalk.green("Lease fulfilled successfully"));
   } catch (err) {
     console.error("Error fulfilling lease", err);
   }

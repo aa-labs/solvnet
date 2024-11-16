@@ -12,9 +12,11 @@ const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
 const STAKING_CONTRACT_ADDRESS = "0x1547FFb043F7C5BDe7BaF3A03D1342CCD8211a28" ; // Replace with your staking contract address
 const STAKING_CONTRACT_ABI = [ 
-  "function slash(address _solver, address _userAddress) external",
+  "function initiateSolverSlashing(address _smartAccount, uint32 _targetChainId, uint256 _leaseId) external payable",
 ];
 
+const DEMO_SMART_ACCOUNT = "0x5065dd346560441c8b73c1c2E1C973Ec35d13789"; 
+const DEMO_SOLVER_ADDRESS = "0x5637bD5c6669AbEF9aF19EE0232dc2104604a1E8";
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
 
 // Initialize the contract instance
@@ -32,34 +34,34 @@ const loader = ora({
 
 // ith solver has taken lease from ith user liq
 const saAddresses = [
-  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+  DEMO_SMART_ACCOUNT
 ];
 
 const solverAddresses = [
-  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+  DEMO_SOLVER_ADDRESS
 ];
 
+const arbitrumChainId = 30110;
+const leaseId = 1;
+
 const scheduleSlashChecks = () => {
-  // */5 * * * * for 5 mins
+  // */5 * * * * for every 5 mins
   const task = cron.schedule('*/3 * * * * *', async () => {
     loader.start();
 
+    loader.succeed(chalk.yellow("Checking slashing..."));
+
     for (let i = 0; i < saAddresses.length; i++) {
       const saAddress = saAddresses[i];
-      const solverAddress = solverAddresses[i];
-      // try {
-      //   let slashTxn = await stakingContract.slash(solverAddress, saAddress);
-      //   await slashTxn.wait();
-      // } catch (error) {
-      //   console.log(error);
-      // }
-      // console.log(
-      //   chalk.bold(`\nChecking lease for solver ${chalk.yellow(saAddress)}`)
-      // );
+      try {
+        let slashTxn = await stakingContract.initiateSolverSlashing(saAddress, arbitrumChainId, leaseId);
+        let receipt = await slashTxn.wait();
+      } catch (error) {
+        console.log(error);
+      }
+      console.log(
+        chalk.bold(`\nChecking lease for solver ${chalk.yellow(saAddress)}`)
+      );
     }
 
     loader.succeed(chalk.green("Slashing checks completed"));
