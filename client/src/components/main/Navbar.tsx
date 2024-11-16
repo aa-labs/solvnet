@@ -5,24 +5,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Copy, LogOut, Wallet } from "lucide-react";
+import { ChevronDown, Copy, LogOut, Network, Wallet } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Link, useLocation } from "react-router-dom";
+import { useSmartAccount } from "@/hooks/useSmartAccount";
 
 const Navbar = () => {
-  const { authenticated, user, login, logout } = usePrivy();
+  const { authenticated, login } = usePrivy();
+  const { accountAddress, logoutSmartAccount } = useSmartAccount();
   const location = useLocation();
 
   return (
-    <nav className="bg-[#f6fefd] border-b-2 border-[#88AB8E] h-16 shadow-md">
+    <nav className="bg-[#FBF8EF] border-b-2 border-[#78B3CE] h-16 shadow-md">
       <div className="container mx-auto px-4 h-full flex justify-between items-center">
         <div className="flex items-center">
           <div className="flex items-center space-x-2">
-            <img
-              src="/placeholder.svg"
-              alt="SolvNet Logo"
-              className="h-8 w-8"
-            />
+            <Network className="h-6 w-6 text-blue-600" />
             <span className="text-xl font-bold">SolvNet</span>
           </div>
         </div>
@@ -51,26 +49,26 @@ const Navbar = () => {
             </>
           )}
 
-          {authenticated ? (
+          {accountAddress ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <Wallet className="h-4 w-4" />
-                  {user?.wallet?.address?.slice(0, 6)}...
-                  {user?.wallet?.address?.slice(-4)}
+                  {accountAddress?.slice(0, 6)}...
+                  {accountAddress?.slice(-4)}
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   onClick={() =>
-                    navigator.clipboard.writeText(user?.wallet?.address || "")
+                    navigator.clipboard.writeText(accountAddress || "")
                   }
                 >
                   <Copy className="mr-2 h-4 w-4" />
                   Copy Address
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={logout}>
+                <DropdownMenuItem onClick={logoutSmartAccount}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>

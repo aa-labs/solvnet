@@ -21,8 +21,26 @@ import {
 } from "@/components/ui/table";
 import { Wallet, Activity, Settings, Loader2 } from "lucide-react";
 import { ethers } from "ethers";
-import VaultAbi from '@/abi/Vault.json'
 import { formatSeconds } from "@/lib/utils";
+import { useSmartAccount } from "@/hooks/useSmartAccount";
+import { Hex } from "viem";
+import SolverStakingAbi from "@/abi/solverstaking.json";
+import { base } from "viem/chains";
+import { UserOpReceipt } from "@biconomy/sdk";
+
+const RPC_URL =
+  "https://base-mainnet.g.alchemy.com/v2/7h2x2EBIOQzBvKSktrewDIjd4kJIigyG";
+const MODULE_ADDRESS = "0x26898BeCcAE66D8ae108C1bE2adE5328D139ec16";
+const TOKEN_ADDRESSES = {
+  ETH: ethers.constants.AddressZero,
+  USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  USDT: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+};
+const TOKEN_DECIMALS = {
+  ETH: 18,
+  USDC: 6,
+  USDT: 6,
+};
 
 interface TokenBalance {
   logo: string;
@@ -34,14 +52,15 @@ interface TokenBalance {
 
 interface Lease {
   duration: string;
-  apr: 5,
-  token: string, 
-  amount: number,
-  status: string
+  apr: number;
+  token: string;
+  amount: number;
+  status: string;
 }
 
 const User = () => {
-  const { login, authenticated, user } = usePrivy();
+  const { login } = usePrivy();
+  const { accountAddress, nexusClient } = useSmartAccount();
   const [config, setConfig] = useState({
     apr: "",
     tokenType: "",
@@ -51,6 +70,8 @@ const User = () => {
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [leases, setLeases] = useState<Lease[]>([]);
+  const [isConfigLoading, setIsConfigLoading] = useState(false);
+  const [isFetchingState, setIsFetchingState] = useState(false);
 
   // Function to fetch token balances
   const fetchBalances = async (address: string) => {
@@ -61,30 +82,34 @@ const User = () => {
       // Example tokens - Base network tokens
       const tokens = [
         {
-          address: "0x0000000000000000000000000000000000000000", // ETH
+          address: TOKEN_ADDRESSES.ETH, // ETH
           symbol: "ETH",
           name: "Ethereum",
           logo: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
           decimals: 18,
         },
         {
-          address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
+          address: TOKEN_ADDRESSES.USDC, // USDC on Base
           symbol: "USDC",
           name: "USD Coin",
           logo: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
           decimals: 6,
         },
-        // Add more Base network tokens as needed
+        // usdt
+        {
+          address: TOKEN_ADDRESSES.USDT,
+          symbol: "USDT",
+          name: "Tether",
+          logo: "https://assets.coingecko.com/coins/images/325/small/Tether-logo.png",
+          decimals: 6,
+        },
       ];
 
-      const provider = new ethers.providers.JsonRpcProvider(
-        // Replace with your RPC URL
-        "https://base-mainnet.g.alchemy.com/v2/7h2x2EBIOQzBvKSktrewDIjd4kJIigyG"
-      );
+      const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
       const balancePromises = tokens.map(async (token) => {
         let balance;
-        if (token.address === "0x0000000000000000000000000000000000000000") {
+        if (token.address === TOKEN_ADDRESSES.ETH) {
           balance = await provider.getBalance(address);
         } else {
           const tokenContract = new ethers.Contract(
@@ -113,103 +138,217 @@ const User = () => {
   };
 
   const fetchLeases = async () => {
+    if (!accountAddress) return;
+
     setIsLoading(true);
     try {
-      const provider = new ethers.providers.JsonRpcProvider(
-        "http://localhost:8545"
-      );
-
-      const vaultContractAddress = "0x6386430503cc0B986bAfC59834bdeDD9bfe31906";
-
-      const vaultContract = new ethers.Contract(
-        vaultContractAddress,
-        VaultAbi.abi,
+      const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+      const solvNetModuleContract = new ethers.Contract(
+        MODULE_ADDRESS,
+        SolverStakingAbi.abi,
         provider
       );
 
-      const leaseCount = await vaultContract.noOfLeases();
-      console.log("these are total lease count", leaseCount._hex);
-      let totalLeases = parseInt(leaseCount._hex, 16);
+      // Fetch active lease IDs for the user's smart account
+      const activeLeaseIds = await solvNetModuleContract.getActiveLeases(
+        accountAddress
+      );
 
-      let leases = [];
+      let leasesData: Lease[] = [];
 
-      for (let i = 0; i < totalLeases; i++) {
-        const leaseResp = await vaultContract.leases(i);
-        console.log("lease", leaseResp);
+      for (let i = 0; i < activeLeaseIds.length; i++) {
+        const leaseId = activeLeaseIds[i];
+        const leaseResp = await solvNetModuleContract.getLease(
+          accountAddress,
+          leaseId
+        );
+
+        const tokenSymbol =
+          leaseResp.token === ethers.constants.AddressZero
+            ? "ETH"
+            : Object.keys(TOKEN_ADDRESSES).find(
+                (key) =>
+                  TOKEN_ADDRESSES[key as keyof typeof TOKEN_ADDRESSES] ===
+                  leaseResp.token
+              ) || "Unknown";
+
+        const tokenDecimals =
+          leaseResp.token === ethers.constants.AddressZero
+            ? 18
+            : TOKEN_DECIMALS[tokenSymbol as keyof typeof TOKEN_DECIMALS];
+
         let lease: Lease = {
-          duration: formatSeconds(parseInt(leaseResp.duration._hex, 16)),
-          token: "USDC",
-          amount: parseInt(leaseResp.amount._hex, 16),
-          apr: 5,
-          status: leaseResp.status ? "Active" : "Expired"
-        }
+          duration: formatSeconds(
+            parseInt(leaseResp.startTime) +
+              parseInt(leaseResp.amount) -
+              Math.floor(Date.now() / 1000)
+          ),
+          token: tokenSymbol,
+          amount: parseFloat(
+            ethers.utils.formatUnits(leaseResp.amount, tokenDecimals)
+          ),
+          apr: parseFloat(ethers.utils.formatUnits(leaseResp.apr, 2)),
+          status: leaseResp.status === 1 ? "Active" : "Fulfilled",
+        };
 
-        leases.push(lease);
+        leasesData.push(lease);
       }
 
-      setLeases(leases);
+      setLeases(leasesData);
     } catch (error) {
-      console.error("Error fetching balances:", error);
+      console.error("Error fetching active leases:", error);
     } finally {
       setIsLoading(false);
     }
-  }
-
-  // Fetch balances when user connects wallet
-  useEffect(() => {
-    if (user?.wallet?.address) {
-      fetchBalances(user.wallet.address);
-    }
-  }, [user?.wallet?.address]);
-
-  useEffect(() => {
-      fetchLeases();
-  }, [])
-
-  // Placeholder data - replace with actual data fetching
-  // const activeLeases = [
-  //   {
-  //     token: "ETH",
-  //     amount: "0.5",
-  //     apr: "5%",
-  //     duration: "7 days",
-  //     status: "Active",
-  //   },
-  //   {
-  //     token: "USDC",
-  //     amount: "200",
-  //     apr: "3.5%",
-  //     duration: "30 days",
-  //     status: "Active",
-  //   },
-  //   {
-  //     token: "DAI",
-  //     amount: "100",
-  //     apr: "4%",
-  //     duration: "14 days",
-  //     status: "Expired",
-  //   },
-  // ];
+  };
 
   const handleConfigChange = (e: any) => {
     setConfig({ ...config, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    // Here you would typically send this data to your backend or smart contract
-    console.log("Submitting config:", config);
+    setIsConfigLoading(true);
+    try {
+      if (!nexusClient) {
+        console.error("Nexus client is not initialized.");
+        return;
+      }
+
+      // Prepare the configuration data
+      const configData = [
+        {
+          token:
+            config.tokenType === "ETH"
+              ? ethers.constants.AddressZero
+              : TOKEN_ADDRESSES[config.tokenType as keyof typeof TOKEN_ADDRESSES],
+          max_amount: ethers.utils.parseUnits(
+            config.leaseAmount,
+            TOKEN_DECIMALS[config.tokenType as keyof typeof TOKEN_DECIMALS]
+          ),
+          apr: ethers.utils.parseUnits(config.apr, 2), // Adjust decimal places as needed
+          max_duration: parseInt(config.leaseDuration) * 24 * 60 * 60, // Convert days to seconds
+        },
+      ];
+
+      const initData = new ethers.utils.AbiCoder().encode(
+        [
+          "tuple(address token, uint256 max_amount, uint256 apr, uint256 max_duration)[]",
+        ],
+        [configData]
+      );
+
+      const isEnabled = await nexusClient.isModuleInstalled({
+        module: {
+          address: MODULE_ADDRESS,
+          type: "executor",
+        },
+      });
+
+      if (!isEnabled) {
+        // install module with the initial configuration
+        const userOpReceipt: UserOpReceipt = await nexusClient.installModule({
+          module: {
+            address: MODULE_ADDRESS as Hex,
+            type: "executor",
+            initData: initData as Hex,
+          },
+        });
+
+        console.log("Module installation transaction:", userOpReceipt);
+      } else {
+        // update config -> updateLeaseConfig on module
+        const updateData = new ethers.utils.Interface(
+          SolverStakingAbi.abi
+        ).encodeFunctionData("updateLeaseConfig", [
+          config.tokenType === "ETH"
+            ? ethers.constants.AddressZero
+            : TOKEN_ADDRESSES[config.tokenType as keyof typeof TOKEN_ADDRESSES],
+          configData[0],
+        ]);
+
+        const tx = await nexusClient.sendTransaction({
+          to: MODULE_ADDRESS as Hex,
+          data: updateData as Hex,
+          value: 0n,
+          chain: base,
+        });
+
+        console.log("Configuration update transaction:", tx);
+      }
+    } catch (error) {
+      console.error("Error updating configuration:", error);
+    } finally {
+      setIsConfigLoading(false);
+    }
   };
 
-  const fetchPreviousState = () => {
-    // Placeholder - replace with actual data fetching
-    setConfig({
-      apr: "4.5",
-      tokenType: "ETH",
-      leaseAmount: "0.1",
-      leaseDuration: "7",
-    });
+  const fetchPreviousState = async () => {
+    setIsFetchingState(true);
+    try {
+      if (!accountAddress || !nexusClient) {
+        console.error("Account address or Nexus client is not available.");
+        return;
+      }
+
+      // Check if the module is installed
+      const isInstalled = await nexusClient.isModuleInstalled({
+        module: {
+          address: MODULE_ADDRESS,
+          type: "executor",
+        },
+      });
+
+      if (!isInstalled) {
+        console.log("Module is not installed.");
+        return;
+      }
+
+      // Create a contract instance of the SolvNetModule
+      const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+      const solvNetModuleContract = new ethers.Contract(
+        MODULE_ADDRESS,
+        SolverStakingAbi.abi,
+        provider
+      );
+
+      // Use the selected token type from the config state
+      const tokenAddress =
+        config.tokenType === "ETH"
+          ? ethers.constants.AddressZero
+          : TOKEN_ADDRESSES[config.tokenType as keyof typeof TOKEN_ADDRESSES];
+
+      // Fetch the lease configuration
+      const leaseConfig = await solvNetModuleContract.getLeaseConfig(
+        accountAddress,
+        tokenAddress
+      );
+
+      // Update the config state with the fetched configuration
+      setConfig({
+        apr: ethers.utils.formatUnits(leaseConfig.apr, 2),
+        tokenType: config.tokenType,
+        leaseAmount: ethers.utils.formatUnits(
+          leaseConfig.max_amount,
+          TOKEN_DECIMALS[config.tokenType as keyof typeof TOKEN_DECIMALS]
+        ),
+        leaseDuration: (leaseConfig.max_duration / (24 * 60 * 60)).toString(),
+      });
+
+      console.log("Fetched previous configuration:", leaseConfig);
+    } catch (error) {
+      console.error("Error fetching previous configuration:", error);
+    } finally {
+      setIsFetchingState(false);
+    }
   };
+
+  useEffect(() => {
+    if (accountAddress) {
+      fetchBalances(accountAddress);
+      fetchLeases();
+    }
+  }, [accountAddress, config.tokenType]);
 
   return (
     <main className="max-w-7xl mx-auto flex-grow flex flex-col md:flex-row overflow-hidden p-4 min-h-[calc(100vh-160px)]">
@@ -240,7 +379,7 @@ const User = () => {
                 <p className="mt-2 text-sm text-gray-400">
                   Connect your wallet to view your tokens
                 </p>
-                {!authenticated && (
+                {!accountAddress && (
                   <Button onClick={login} variant="outline" className="mt-4">
                     Connect Wallet
                   </Button>
@@ -388,16 +527,31 @@ const User = () => {
                 </Select>
               </div>
               <div className="flex space-x-2">
-                <Button type="submit" className="flex-1">
-                  Confirm/Edit
+                <Button type="submit" className="flex-1" disabled={isConfigLoading}>
+                  {isConfigLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Confirm/Edit"
+                  )}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={fetchPreviousState}
                   className="flex-1"
+                  disabled={isFetchingState}
                 >
-                  Fetch Previous State
+                  {isFetchingState ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    "Fetch Previous State"
+                  )}
                 </Button>
               </div>
             </form>

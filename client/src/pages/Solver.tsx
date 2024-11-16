@@ -37,9 +37,9 @@ const Solver = () => {
 
 
   // Mock data (replace with actual data fetching logic)
-  const totalStaked = "1000 ETH";
-  const rewardsEarned = "50 ETH";
-  const accessLimit = "500 ETH";
+  const totalStaked = "0.001 ETH";
+  const rewardsEarned = "0 ETH";
+  const accessLimit = "0.1 ETH";
   const networkStatus = "Active";
   const fraudProofStatus = "Active";
 

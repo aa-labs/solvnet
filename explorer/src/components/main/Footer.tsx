@@ -1,6 +1,6 @@
 const Footer = () => (
   <footer
-    className="shadow-md mt-8 h-16 border-t-2 border-[#88AB8E]"
+    className="bg-white shadow-md mt-8 h-16 border-t-2 border-[#88AB8E]"
     style={{ background: "url(/img/floor.svg) center repeat" }}
   >
     <div className="container mx-auto px-4 h-full flex justify-between items-center">
