@@ -306,13 +306,13 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
 
   console.log(chalk.italic("Opting in leases..."));
 
-  // let receipt = await startLeases(
-  //   smartAccountAddresses,
-  //   tokenAddresses,
-  //   tokenAmounts,
-  //   toAddresses,
-  //   provider
-  // );
+  let receipt = await startLeases(
+    smartAccountAddresses,
+    tokenAddresses,
+    tokenAmounts,
+    toAddresses,
+    provider
+  );
 
   // console.log("Start lease txn receipt", receipt);
 
@@ -341,6 +341,7 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
     let totalFullfilledAmount = 0;
      for(let i = 0; i < rugpullLease.length; i++) {
       totalFullfilledAmount += rugpullLease[i].leasesResp.amount;
+      console.log(totalFullfilledAmount);
       solSA.push(rugpullLease[i].saAddress);
       if (totalFullfilledAmount >= tokenAmount) break;
      }
@@ -350,6 +351,7 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
     let totalFullfilledAmount = 0;
      for(let i = 0; i < ladduLease.length; i++) {
       totalFullfilledAmount += ladduLease[i].leasesResp.amount;
+      console.log(totalFullfilledAmount);
       solSA.push(ladduLease[i].saAddress);
       if (totalFullfilledAmount >= tokenAmount) break;
      }
