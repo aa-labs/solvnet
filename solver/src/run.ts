@@ -111,20 +111,33 @@ const startLeases = async (
 
 const fulfillLease = async (
   saAddress: string,
-  leaseId: string,
+  leaseId: number,
   provider: JsonRpcProvider
 ) => {
-  const { SOLVE_MODULE } = addresses;
+  const { SOLVE_MODULE, USDC } = addresses;
+  let leaseOwner = saAddress;
+
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
   const solveModuleContract = new ethers.Contract(
     SOLVE_MODULE,
     SOLVER_MODULE_ABI,
     signer
   );
+  const tokenContract = new ethers.Contract(USDC, ERC20_ABI, signer);
+  
+  //! TODO the approval should be with solver module here right ?
+  // some random amount for now  
+
+  try {
+    const approve = await tokenContract.approve(SOLVE_MODULE, 100);
+    let receipt = await approve.wait();
+  } catch (err) {
+    console.error("Error approving token", err);
+  }
 
   try {
     let leasePayBackResp = await solveModuleContract.fulfillLease(
-      saAddress,
+      leaseOwner,
       leaseId
     );
 
@@ -152,7 +165,7 @@ const getAllLeases = async (provider: JsonRpcProvider, saAddress: string, ) => {
     // transform these leases into lease object and send those for solving 
 }
 
-export const solve = async () => {
+export const solve = async (tokenAmount: number): Promise<String[]> => {
   const { USDC, USDT, UNISWAP, VAULT, SOLVE_MODULE } = addresses;
   const provider = new ethers.JsonRpcProvider(RPC_URL);
 
@@ -222,15 +235,15 @@ export const solve = async () => {
   // wait for 1 min
   await new Promise((resolve) => setTimeout(resolve, 60000));
 
-  // returning lease now
-  let leaseOwner = "0xLeaseOwner";
-  const tokenContract = new ethers.Contract(USDC, ERC20_ABI, signer);
-
-  //! TODO the approval should be with solver module here right ?
-  // some random amount for now  
-  const approve = await tokenContract.approve(SOLVE_MODULE, 100);
-  receipt = await approve.wait();
-
-  // fullfilling first lease for now
-  await fulfillLease(leaseOwner, leaseIds[0].leaseId, provider);
+  // hardcoded saAddresses for now
+  return ["0x6386430503cc0B986bAfC59834bdeDD9bfe31906", "0x6386430503cc0B986bAfC59834bdeDD9bfe31906"]
 };
+
+export const fullfillLease = async (leaseOwner: string, leaseId: number) => {
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
+  try {
+    await fulfillLease(leaseOwner, leaseId, provider);
+  } catch(err) {
+    console.error("Error fulfilling lease", err);
+  }
+}
