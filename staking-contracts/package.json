@@ -1,0 +1,9 @@
+{
+  "name": "staking-contracts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.15"
+  }
+}
