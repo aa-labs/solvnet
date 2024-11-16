@@ -259,7 +259,7 @@ export const solve = async (tokenAmount: number, tokenAddress: string): Promise<
 
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
 
-  let smartAccountAddresses = [DEMO_SMART_ACCOUNT];
+  let smartAccountAddresses = [DEMO_SMART_ACCOUNT, "0x8264064B0568f48ea884b21aEfE131B09314197e", "0x6845533D4be0A2988E49C99cDe9e1ba677344F5a", ""];
   let toAddresses = [signer.address];
   let tokenAddresses = [USDC];
   let tokenAmounts = [ethers.parseUnits("1", 6)];
