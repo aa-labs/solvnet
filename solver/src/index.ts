@@ -1,9 +1,11 @@
 import { solve, fullfillLease } from "./run";
 import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
 
 const app = express();
 const port = process.env.PORT || 5001;
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
