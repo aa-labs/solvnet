@@ -93,13 +93,11 @@ contract SolvNetModule is ERC7579ExecutorBase {
 
     /**
      * @notice Updates the lease configuration for a specific token.
-     * @param token The token address
      * @param config The new lease configuration.
      */
-    function updateLeaseConfig(address token, TokenWiseLeaseConfig calldata config) external {
-        if (config.token != token) revert TokenMismatch(token, config.token);
-        if (config.max_amount == 0) revert AmountMustBeGreaterThanZero(token);
-        leaseConfigs[msg.sender][token] = config;
+    function updateLeaseConfig(TokenWiseLeaseConfig calldata config) external {
+        if (config.max_amount == 0) revert AmountMustBeGreaterThanZero(config.token);
+        leaseConfigs[msg.sender][config.token] = config;
         emit LeaseConfigUpdated(msg.sender, config);
     }
 

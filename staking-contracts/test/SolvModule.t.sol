@@ -83,7 +83,7 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
             data: abi.encode(configs)
         });
         vm.prank(alice);
-        solvModule.updateLeaseConfig(address(testToken), config);
+        solvModule.updateLeaseConfig(config);
     }
 
     function test_moduleInstallation() public {
@@ -108,7 +108,7 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
         });
 
         vm.prank(instance.account);
-        solvModule.updateLeaseConfig(address(testToken2), newConfig);
+        solvModule.updateLeaseConfig(newConfig);
 
         // Verify updated config using getter
         SolvNetModule.TokenWiseLeaseConfig memory config =
@@ -225,7 +225,7 @@ contract SolvModuleTest is RhinestoneModuleKit, Test {
         });
 
         vm.prank(instance.account);
-        solvModule.updateLeaseConfig(address(0), config);
+        solvModule.updateLeaseConfig(config);
 
         // Start lease
         uint256 initialBalance = address(instance.account).balance;

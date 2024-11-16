@@ -6,7 +6,8 @@ import {Origin} from "LayerZero-v2/packages/layerzero-v2/evm/oapp/contracts/oapp
 import {
     MessagingParams,
     MessagingFee,
-    MessagingReceipt
+    MessagingReceipt,
+    ILayerZeroEndpointV2
 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {
     EVMCallRequestV1,
@@ -17,6 +18,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import {SolvNetModule} from "./SolvNetModule.sol";
+import {AddressCast} from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/AddressCast.sol";
 // import {console2} from "forge-std/console2.sol";
 
 contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
@@ -50,7 +52,7 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
     uint256 public constant UNSTAKE_TIMELOCK = 7 days;
     uint256 public totalStaked; // total staked amount
 
-    uint32 public readChannel = 4294967295;
+    uint32 public readChannel = 4294967294;
 
     // events
     event Staked(address indexed solver, uint256 amount);
@@ -71,6 +73,17 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
         eids[1] = 30101;
         eids[8453] = 30184;
         eids[42161] = 30110;
+
+        _setPeer(readChannel, AddressCast.toBytes32(address(this)));
+        _setPeer(eids[1], AddressCast.toBytes32(address(this)));
+        _setPeer(eids[8453], AddressCast.toBytes32(address(this)));
+        _setPeer(eids[42161], AddressCast.toBytes32(address(this)));
+
+        ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(_endpoint);
+        // endpoint.setSendLibrary(address(this), readChannel, 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
+        endpoint.setSendLibrary(address(this), eids[1], 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
+        endpoint.setSendLibrary(address(this), eids[8453], 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
+        endpoint.setSendLibrary(address(this), eids[42161], 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
     }
 
     // Stake a certain amount of tokens.
@@ -148,7 +161,7 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
     }
 
     // Gets the lease status of a user across chains using LayerZero Read.
-    function initiateSolverSlashing(address _smartAccount, uint32 _targetChainId, uint256 _leaseId) external {
+    function initiateSolverSlashing(address _smartAccount, uint32 _targetChainId, uint256 _leaseId) external payable {
         address remoteContract = solvModuleContracts[_targetChainId];
         if (remoteContract == address(0)) revert RemoteContractNotSet(_targetChainId);
 
@@ -185,8 +198,8 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
             readChannel,
             cmd,
             "", // No extra options
-            MessagingFee(address(this).balance, 0), // Ensure to send sufficient msg.value for fees
-            payable(address(this))
+            MessagingFee(msg.value, 0), // Ensure to send sufficient msg.value for fees
+            payable(msg.sender)
         );
 
         emit ReadRequestSent(receipt.guid);
