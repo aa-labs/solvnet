@@ -90,8 +90,9 @@ interface Lease {
   smartAccount: string;
   token: string;
   amount: number;
-  startTime: Date;
+  startTime: number;
   status: string;
+  solver: string;
 }
 
 const startLeases = async (
@@ -185,19 +186,30 @@ const getLease = async (
   //     address token;
   //     uint256 amount;
   //     uint256 startTime;
+  //     address leaser;
   //     LeaseStatus status;
   // }
 
-  const demoLease: Lease = {
-    leaseId: 1,
-    smartAccount: saAddress,
-    token: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-    amount: 4,
-    startTime: new Date(),
-    status: "Active",
+  const getLeaseStatus = (status: number): string => {
+    const statusMap: { [key: string]: string } = {
+      "0": "None",
+      "1": "Active",
+      "2": "Fulfilled",
+    };
+    return statusMap[status.toString()] || "Unknown";
   };
 
-  return demoLease;
+  const leaseResp: Lease = {
+    leaseId: Number(lease[0]),
+    smartAccount: saAddress,
+    token: lease[1],
+    amount: Number(lease[2]),
+    startTime: Number(lease[3]),
+    status: getLeaseStatus(Number(lease[5])),
+    solver: lease[4],
+  };
+
+  return leaseResp;
 };
 
 const getAllLeases = async (provider: JsonRpcProvider, saAddress: string) => {
@@ -264,53 +276,53 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
     `${TEE_EXPLORER}/${VERIFICATION_HASH}`
   );
 
-  console.log(chalk.italic("Opting leases..."));
+  console.log(chalk.italic("Opting in leases..."));
 
-  let receipt = await startLeases(
-    smartAccountAddresses,
-    tokenAddresses,
-    tokenAmounts,
-    toAddresses,
-    provider
-  );
+  // let receipt = await startLeases(
+  //   smartAccountAddresses,
+  //   tokenAddresses,
+  //   tokenAmounts,
+  //   toAddresses,
+  //   provider
+  // );
 
   // console.log("Start lease txn receipt", receipt);
 
-  const leaseStartedEvents = receipt.events.filter(
-    (event: { event: string }) => event.event === "LeaseStarted"
-  );
+  // const leaseStartedEvents = receipt.events.filter(
+  //   (event: { event: string }) => event.event === "LeaseStarted"
+  // );
 
-  console.log("Lease started events", leaseStartedEvents);
+  // console.log("Lease started events", leaseStartedEvents);
 
-  const leaseIds = leaseStartedEvents.map((event: any) => {
-    const { smartAccount, leaseId, _ } = event.args;
-    return {
-      smartAccount: smartAccount.toString(),
-      leaseId: leaseId.toString(),
-    };
-  });
+  // const leaseIds = leaseStartedEvents.map((event: any) => {
+  //   const { smartAccount, leaseId, _ } = event.args;
+  //   return {
+  //     smartAccount: smartAccount.toString(),
+  //     leaseId: leaseId.toString(),
+  //   };
+  // });
 
   // console.log("LeaseIds", leaseIds);
 
   //! demo
-  // let leaseIds = [
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: DEMO_SMART_ACCOUNT,
-  //   },
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: DEMO_SMART_ACCOUNT,
-  //   },
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: DEMO_SMART_ACCOUNT,
-  //   },
-  //   {
-  //     leaseId: 1,
-  //     smartAccount: DEMO_SMART_ACCOUNT,
-  //   },
-  // ];
+  let leaseIds = [
+    {
+      leaseId: 1,
+      smartAccount: DEMO_SMART_ACCOUNT,
+    },
+    {
+      leaseId: 1,
+      smartAccount: DEMO_SMART_ACCOUNT,
+    },
+    // {
+    //   leaseId: 1,
+    //   smartAccount: DEMO_SMART_ACCOUNT,
+    // },
+    // {
+    //   leaseId: 1,
+    //   smartAccount: DEMO_SMART_ACCOUNT,
+    // },
+  ];
 
   let leases = [];
   for (let leaseId of leaseIds) {
@@ -322,7 +334,7 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
     leases.push(lease);
   }
 
-  console.log("Fetched leaseIds", leaseIds);
+  console.log("Fetched leases", leases);
 
   // sort leases
   leases = leases.sort((a, b) => a.amount - b.amount);
@@ -353,7 +365,7 @@ export const solve = async (tokenAmount: number): Promise<String[]> => {
   // console.log("Swap contract response", swapResp);
 
   // wait for 1 min
-  console.log(chalk.italic("Opted in..."));
+  console.log(chalk.italic("Opted in to one or multiple lease..."));
 
   console.log(chalk.italic("Solver using the leased funds to solve now..."));
   await new Promise((resolve) => setTimeout(resolve, 600));
