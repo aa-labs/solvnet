@@ -16,6 +16,11 @@
         "name": "_owner",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_solvNetModule",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
@@ -586,42 +591,10 @@
         "internalType": "bool"
       },
       {
-        "name": "lease",
-        "type": "tuple",
+        "name": "leaser",
+        "type": "address",
         "indexed": false,
-        "internalType": "struct SolvNetModule.Lease",
-        "components": [
-          {
-            "name": "id",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "token",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "amount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "startTime",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "leaser",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum SolvNetModule.LeaseStatus"
-          }
-        ]
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -874,6 +847,17 @@
     "type": "error",
     "name": "InvalidEndpointCall",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidOptionType",
+    "inputs": [
+      {
+        "name": "optionType",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ]
   },
   {
     "type": "error",
