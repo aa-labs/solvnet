@@ -27,3 +27,8 @@ remappings = [
     "@uniswap/swap-router/=lib/swap-router-contracts/",
     "modulekit/=lib/modulekit/src/",
 ]
+
+[etherscan]
+1 = { key = "${EXPLORER_KEY_1}" }
+42161 = { key = "${EXPLORER_KEY_42161}" }
+8453 = { key = "${EXPLORER_KEY_8453}" }

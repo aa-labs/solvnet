@@ -33,3 +33,7 @@ solady/=lib/modulekit/node_modules/solady/src/
 solarray/=lib/modulekit/node_modules/solarray/src/
 swap-router-contracts/=lib/swap-router-contracts/contracts/
 v2-core/=lib/v2-core/contracts/
+@layerzerolabs/lz-evm-protocol-v2/=lib/layerzero-v2/packages/layerzero-v2/evm/protocol
+devtools/=lib/devtools
+solidity-bytes-utils/=lib/solidity-bytes-utils/
+@layerzerolabs/lz-evm-messagelib-v2/=node_modules/@layerzerolabs/lz-evm-messagelib-v2/

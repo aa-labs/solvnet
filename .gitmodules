@@ -16,3 +16,9 @@
 [submodule "staking-contracts/lib/modulekit"]
 	path = staking-contracts/lib/modulekit
 	url = https://github.com/rhinestonewtf/modulekit
+[submodule "staking-contracts/lib/devtools"]
+	path = staking-contracts/lib/devtools
+	url = https://github.com/LayerZero-Labs/devtools
+[submodule "staking-contracts/lib/solidity-bytes-utils"]
+	path = staking-contracts/lib/solidity-bytes-utils
+	url = https://github.com/GNSPS/solidity-bytes-utils
