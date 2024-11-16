@@ -2,6 +2,9 @@ import { fetchStakeInfo } from "./proof";
 import { ethers } from "ethers";
 import chalk from "chalk";
 import ora from "ora";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // Configure the RPC provider and contract details
 const RPC_URL = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"; // Replace with your RPC URL
@@ -12,11 +15,13 @@ const STAKING_CONTRACT_ABI = [
   "function slash(address _solver, address _userAddress) external",
 ];
 
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY || '', provider);
+
 // Initialize the contract instance
 const stakingContract = new ethers.Contract(
   STAKING_CONTRACT_ADDRESS,
   STAKING_CONTRACT_ABI,
-  provider
+  signer
 );
 
 // Loader utility
