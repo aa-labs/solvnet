@@ -225,8 +225,11 @@ export const solve = async () => {
   // returning lease now
   let leaseOwner = "0xLeaseOwner";
   const tokenContract = new ethers.Contract(USDC, ERC20_ABI, signer);
-  const allowance = await tokenContract.allowance(signer.address, leaseOwner);
-  receipt = allowance.wait();
+
+  //! TODO the approval should be with solver module here right ?
+  // some random amount for now  
+  const approve = await tokenContract.approve(SOLVE_MODULE, 100);
+  receipt = await approve.wait();
 
   // fullfilling first lease for now
   await fulfillLease(leaseOwner, leaseIds[0].leaseId, provider);
