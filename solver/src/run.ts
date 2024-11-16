@@ -1,6 +1,5 @@
 import { ethers, JsonRpcProvider } from "ethers";
 import Uniswapabi from "../abi/UniswapSolver.json";
-import VaultAbi from "../abi/Vault.json";
 import addresses from "../address.json";
 import { RPC_URL } from "./config";
 import dotenv from "dotenv";
@@ -19,7 +18,43 @@ const ERC20_ABI = [
   "function decimals() external view returns (uint8)",
 ];
 
-interface LeaseEvent {
+const MATCHER_BASE_URL = "http://localhost:3000";
+
+const demoSolverRequests = [
+    {
+      id: "solver1",
+      tokenAmount: 1000,
+      duration: 30,
+      tokenName: "USDC",
+      apr: 5,
+    },
+    {
+      id: "solver2",
+      tokenAmount: 2000,
+      duration: 60,
+      tokenName: "USDC",
+      apr: 6,
+    },
+  ];
+  
+  const demoUserLeaseRequests = [
+    {
+      id: "userLease1",
+      tokenAmount: 800,
+      duration: 25,
+      tokenName: "USDC",
+      apr: 7,
+    },
+    {
+      id: "userLease2",
+      tokenAmount: 1500,
+      duration: 45,
+      tokenName: "USDC",
+      apr: 6.5,
+    },
+  ];
+
+interface Lease {
   leaseId: string;
   smartAccount: string;
   token: string;
@@ -84,6 +119,23 @@ const fulfillLease = async (
   }
 };
 
+const getLease = async (saAddress: string, leaseId: string, provider: JsonRpcProvider) => {
+    const { SOLVE_MODULE } = addresses;
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
+    const solveModuleContract = new ethers.Contract(SOLVE_MODULE, SOLVER_MODULE_ABI, provider);
+    const lease = await solveModuleContract.getLease(saAddress, leaseId);   
+    console.log("Lease", lease);
+}
+
+const getAllLeases = async (provider: JsonRpcProvider, saAddress: string, ) => {
+    const { SOLVE_MODULE } = addresses;
+    const solveModuleContract = new ethers.Contract(SOLVE_MODULE, SOLVER_MODULE_ABI, provider);
+    const leases = await solveModuleContract.getActiveLeases(saAddress);
+    console.log("Leases", leases);
+
+    // transform these leases into lease object and send those for solving 
+}
+
 export const solve = async () => {
   const { USDC, USDT, UNISWAP, VAULT, SOLVE_MODULE } = addresses;
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -97,15 +149,32 @@ export const solve = async () => {
   );
 
   const leaseIds = leaseStartedEvents.map((event: any) => {
-    const { smartAccount, leaseId, lease } = event.args;
+    const { smartAccount, leaseId, _ } = event.args;
     return {
+      smartAccount: smartAccount.toString(),
       leaseId: leaseId.toString(),
     };
   });
 
+  const lease = getLease(leaseIds[0].smartAccount, leaseIds[0].leaseId, provider);
+
   console.log("Fetched leaseIds", leaseIds);
 
-  // for solver: swap usdc to usdt now a.k.a using lease amount here
+  // fetch active leases and find the one which matches the solver intent 
+  const response = await fetch(`${MATCHER_BASE_URL}/api/getOptimalMatches`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userLeaseRequests: demoUserLeaseRequests,
+      solverRequests: demoSolverRequests
+    })
+  });
+
+  console.log("Optimal lease for solver", response);
+
+  // for solver: swap usdc to usdt now a.k.a using lease here
   const uniswapContract = new ethers.Contract(UNISWAP, Uniswapabi.abi, signer);
 
   const amountIn = ethers.parseUnits("0.1", 6);
