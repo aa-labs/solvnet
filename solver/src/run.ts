@@ -22,6 +22,7 @@ const MATCHER_BASE_URL = "http://localhost:3000";
 const TEE_EXPLORER = "https://ra-quote-explorer.vercel.app/reports";
 const VERIFICATION_HASH =
   "a03404f3b9ff15461d4e907f4f4c8c203875c494bf50c71c5659517c18805961";
+const DEMO_SMART_ACCOUNT = "0x5065dd346560441c8b73c1c2E1C973Ec35d13789";
 
 const readStream = async (stream: any) => {
   const reader = stream.getReader();
@@ -197,44 +198,55 @@ const getAllLeases = async (provider: JsonRpcProvider, saAddress: string) => {
 };
 
 export const solve = async (tokenAmount: number): Promise<String[]> => {
-  const { USDC, USDT, UNISWAP, VAULT, SOLVE_MODULE } = addresses;
+  const { USDC } = addresses;
   const provider = new ethers.JsonRpcProvider(RPC_URL);
 
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
-  // loop over multiple chains and lease tokens over diff chains
 
-  // let receipt = await startLeases([], [], [], [], provider);
-  // const leaseStartedEvents = receipt.events.filter(
-  //   (event: { event: string }) => event.event === "LeaseStarted"
-  // );
+  let smartAccountAddresses = [DEMO_SMART_ACCOUNT];
+  let toAddresses = [signer.address];
+  let tokenAddresses = [USDC];
+  let tokenAmounts = [ethers.parseUnits("1", 6)];
 
-  // const leaseIds = leaseStartedEvents.map((event: any) => {
-  //   const { smartAccount, leaseId, _ } = event.args;
-  //   return {
-  //     smartAccount: smartAccount.toString(),
-  //     leaseId: leaseId.toString(),
-  //   };
-  // });
+  let receipt = await startLeases(smartAccountAddresses, tokenAddresses, tokenAmounts, toAddresses, provider);
+
+  console.log("Start lease txn receipt", receipt);
+
+  const leaseStartedEvents = receipt.events.filter(
+    (event: { event: string }) => event.event === "LeaseStarted"
+  );
+
+  console.log("Lease started events", leaseStartedEvents);
+
+  const leaseIds = leaseStartedEvents.map((event: any) => {
+    const { smartAccount, leaseId, _ } = event.args;
+    return {
+      smartAccount: smartAccount.toString(),
+      leaseId: leaseId.toString(),
+    };
+  });
+
+  console.log("LeaseIds", leaseIds);
 
   //! demo
-  let leaseIds = [
-    {
-      leaseId: 1,
-      smartAccount: "0x124",
-    },
-    {
-      leaseId: 1,
-      smartAccount: "0x124",
-    },
-    {
-      leaseId: 1,
-      smartAccount: "0x124",
-    },    
-    {
-      leaseId: 1,
-      smartAccount: "0x124",
-    }
-  ];
+  // let leaseIds = [
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: "0x124",
+  //   },
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: "0x124",
+  //   },
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: "0x124",
+  //   },    
+  //   {
+  //     leaseId: 1,
+  //     smartAccount: "0x124",
+  //   }
+  // ];
 
   let leases = [];
   for (let leaseId of leaseIds) {
