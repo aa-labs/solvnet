@@ -266,11 +266,13 @@ contract SolvNetModule is ERC7579ExecutorBase {
      * @param account The user's smart account address
      * @param leaseId The lease ID to check
      */
-    function checkLeaseExpiry(address account, uint256 leaseId) external view returns (bool, Lease memory) {
+    function checkLeaseExpiry(address account, uint256 leaseId) external view returns (bool, address) {
         Lease storage lease = leases[account][leaseId];
         TokenWiseLeaseConfig storage config = leaseConfigs[account][lease.token];
 
-        return (lease.status == LeaseStatus.Active && block.timestamp >= lease.startTime + config.max_duration, lease);
+        return (
+            lease.status == LeaseStatus.Active && block.timestamp >= lease.startTime + config.max_duration, lease.leaser
+        );
     }
 
     /**

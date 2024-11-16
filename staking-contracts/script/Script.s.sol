@@ -16,7 +16,7 @@ address constant CREATE2_FACTORY_ADDRESS = 0x4e59b44847b379578588920cA78FbF26c0B
 // Deployment Salts
 string constant SOLVER_STAKING_SALT = "SOLVER_STAKING";
 string constant SOLV_NET_MODULE_SALT = "SOLV_NET_MODULE";
-string constant STAKING_TOKEN_SALT = "STAKING_TOKEN_2";
+string constant STAKING_TOKEN_SALT = "STAKING_TOKEN_4";
 string constant MEME_TOKEN_SALT = "MEME_TOKEN";
 
 // Deployment Configuration
@@ -25,9 +25,11 @@ string constant STAKING_TOKEN_SYMBOL = "SOLVN";
 
 // RPC Base
 string constant RPC_BASE = "https://base-mainnet.g.alchemy.com/v2/G7Le1MzAcFgLuG6lIVw73_1wsZotpr28";
+// string constant RPC_BASE = "https://mainnet.base.org";
 string constant RPC_ARBITRUM = "https://arb-mainnet.g.alchemy.com/v2/G7Le1MzAcFgLuG6lIVw73_1wsZotpr28";
 
 uint256 constant TOKEN_AMT = 1000000000 ether;
+uint256 constant SOLVER_INITIAL_STAKE = 1 ether;
 
 string constant MEME_TOKEN_SYMBOL = "RUGPULL";
 
@@ -118,7 +120,7 @@ contract DeployDeterministic is Script {
         return layerzeroEndpoints[chainId];
     }
 
-    function deploy(uint256 deployerPrivateKey)
+    function deploy(uint256 deployerPrivateKey, uint256 solverPrivateKey)
         internal
         returns (MockERC20 stakingToken, SolverStaking solverStaking, SolvNetModule solvNetModule)
     {
@@ -147,6 +149,13 @@ contract DeployDeterministic is Script {
         if (balance < TOKEN_AMT) {
             console2.log("Minting Staking Token to Deployer");
             stakingToken.mint(deployerAddress, TOKEN_AMT - balance);
+        }
+        // Mint Staking Token to Solver
+        address solverAddress = vm.addr(solverPrivateKey);
+        balance = stakingToken.balanceOf(solverAddress);
+        if (balance < TOKEN_AMT) {
+            console2.log("Minting Staking Token to Solver");
+            stakingToken.mint(solverAddress, TOKEN_AMT - balance);
         }
 
         // Deploy SolvNetModule
@@ -199,8 +208,27 @@ contract DeployDeterministic is Script {
         uint256 deployerKey,
         uint256 solverKey,
         SolvNetModule solvNetModule,
-        SolverStaking solverStaking
+        SolverStaking solverStaking,
+        MockERC20 stakingToken
     ) internal {
+        // Switch to Base
+        vm.selectFork(baseFork);
+        // Stake Solver
+        vm.startBroadcast(solverKey);
+        address solverAddress = vm.addr(solverKey);
+        (uint256 amount,,) = solverStaking.stakes(solverAddress);
+        if (amount == 0) {
+            if (stakingToken.allowance(solverAddress, address(solverStaking)) < type(uint256).max / 2) {
+                console2.log("Approving SolverStaking for Staking Token");
+                stakingToken.approve(address(solverStaking), type(uint256).max);
+            }
+            console2.log("Staking Solver");
+            solverStaking.stake(SOLVER_INITIAL_STAKE);
+        } else {
+            console2.log("Solver already staked, skipping");
+        }
+        vm.stopBroadcast();
+
         // Switch to Arbitrum
         vm.selectFork(arbitrumFork);
 
@@ -242,7 +270,6 @@ contract DeployDeterministic is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(solverKey);
-        address solverAddress = vm.addr(solverKey);
         // Start Lease
         console2.log("Starting Lease");
         uint256 leaseId = solvNetModule.startLease(deployerAddress, address(memeToken), 100e18, solverAddress);
@@ -269,15 +296,15 @@ contract DeployDeterministic is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployerAddress = vm.addr(deployerPrivateKey);
 
-        console2.log("Deploying with address: ", deployerAddress);
-
-        (MockERC20 stakingToken, SolverStaking solverStaking, SolvNetModule solvNetModule) = deploy(deployerPrivateKey);
-
         uint256 solverPrivateKey = vm.envUint("SOLVER_PRIVATE_KEY");
         address solverAddress = vm.addr(solverPrivateKey);
 
+        console2.log("Deploying with address: ", deployerAddress);
         console2.log("Solver: ", solverAddress);
 
-        tryLeaseFlow(deployerPrivateKey, solverPrivateKey, solvNetModule, solverStaking);
+        (MockERC20 stakingToken, SolverStaking solverStaking, SolvNetModule solvNetModule) =
+            deploy(deployerPrivateKey, solverPrivateKey);
+
+        tryLeaseFlow(deployerPrivateKey, solverPrivateKey, solvNetModule, solverStaking, stakingToken);
     }
 }

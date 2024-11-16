@@ -23,6 +23,8 @@ import {AddressCast} from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/Addr
 // import {console2} from "forge-std/console2.sol";
 
 contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
+    using OptionsBuilder for bytes;
+
     // Custom Errors
     error ZeroAmount(uint256 amount);
     error TokenTransferFailed(address token, address from, address to, uint256 amount);
@@ -65,7 +67,7 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
     event LeaseStatusFetched(address indexed user);
     event ReadRequestSent(bytes32 guid);
     event LeaseStatusProcessed(address indexed user);
-    event LeaseExpiryResponse(bool isExpired, SolvNetModule.Lease lease);
+    event LeaseExpiryResponse(bool isExpired, address leaser);
     event Received(address indexed sender, uint256 amount);
 
     // add logic to authorize slashers?
@@ -73,23 +75,17 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
         Ownable(_owner)
         OAppRead(_endpoint, _owner)
     {
-        readChannel = 4294967294;
+        readChannel = 4294967295;
 
         stakingToken = IERC20(_stakingToken);
         eids[1] = 30101;
         eids[8453] = 30184;
         eids[42161] = 30110;
 
-        // _setPeer(readChannel, AddressCast.toBytes32(address(this)));
+        _setPeer(readChannel, AddressCast.toBytes32(address(this)));
         _setPeer(eids[1], AddressCast.toBytes32(_solvNetModule));
         _setPeer(eids[8453], AddressCast.toBytes32(_solvNetModule));
         _setPeer(eids[42161], AddressCast.toBytes32(_solvNetModule));
-
-        // ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(_endpoint);
-        // endpoint.setSendLibrary(address(this), readChannel, 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
-        // endpoint.setSendLibrary(address(this), eids[1], 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
-        // endpoint.setSendLibrary(address(this), eids[8453], 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
-        // endpoint.setSendLibrary(address(this), eids[42161], 0x1273141a3f7923AA2d9edDfA402440cE075ed8Ff);
     }
 
     // Stake a certain amount of tokens.
@@ -201,9 +197,9 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
 
         // Send the read request using LayerZero's _lzSend
         MessagingReceipt memory receipt = _lzSend(
-            targetEid,
+            readChannel,
             cmd,
-            OptionsBuilder.addExecutorLzReceiveOption(OptionsBuilder.newOptions(), 100_000, 0),
+            OptionsBuilder.newOptions().addExecutorLzReadOption(200_000_0, 0x40, 0),
             MessagingFee(msg.value, 0), // Ensure to send sufficient msg.value for fees
             payable(msg.sender)
         );
@@ -227,18 +223,17 @@ contract SolverStaking is Ownable, ReentrancyGuard, OAppRead {
         bytes calldata _extraData
     ) internal override {
         // Decode the response
-        (bool isExpired, SolvNetModule.Lease memory lease) = abi.decode(_message, (bool, SolvNetModule.Lease));
-        emit LeaseExpiryResponse(isExpired, lease);
+        (bool isExpired, address leaser) = abi.decode(_message, (bool, address));
+        emit LeaseExpiryResponse(isExpired, leaser);
 
         if (isExpired) {
-            _slashSolver(lease.leaser);
+            _slashSolver(leaser);
         }
     }
 
     // Slash a solver's stake for failing to return funds.
     function _slashSolver(address _solver) internal nonReentrant {
         uint256 slashedAmount = stakes[_solver].amount + stakes[_solver].pendingUnstakeAmount;
-        if (slashedAmount == 0) revert NoStakeToSlash(_solver);
 
         // Reset the solver's stake info
         stakes[_solver].amount = 0;
