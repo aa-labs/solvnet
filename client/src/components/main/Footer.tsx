@@ -12,7 +12,7 @@ const Footer = () => (
           padding: "4px 12px",
         }}
       >
-        Team <span className="underline">abc</span>
+        Team <span className="underline">SolvNet</span>
       </p>
       <div
         className="flex space-x-4"

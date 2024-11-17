@@ -27,6 +27,7 @@ import { Hex } from "viem";
 import SolvNetModuleAbi from "@/abi/SolvNet.json";
 import NexusAbi from "@/abi/nexus.json";
 import { base } from "viem/chains";
+import { useToast } from "@/hooks/use-toast";
 
 const RPC_URL =
   "https://base-mainnet.g.alchemy.com/v2/7h2x2EBIOQzBvKSktrewDIjd4kJIigyG";
@@ -72,6 +73,7 @@ const User = () => {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [isConfigLoading, setIsConfigLoading] = useState(false);
   const [isFetchingState, setIsFetchingState] = useState(false);
+  const { toast } = useToast();
 
   // Function to fetch token balances
   const fetchBalances = async (address: string) => {
@@ -270,6 +272,10 @@ const User = () => {
 
         const receipt = await nexusClient.waitForTransactionReceipt({ hash });
         console.log("Module installation receipt:", receipt);
+        toast({
+          title: "Success",
+          description: "Module installed successfully",
+        });
       } else {
         // Update config -> call `updateLeaseConfig` on the module
         const moduleInterface = new ethers.utils.Interface(
@@ -298,9 +304,22 @@ const User = () => {
         });
 
         console.log("Configuration update transaction:", tx);
+        await nexusClient.waitForTransactionReceipt({ hash: tx });
+        toast({
+          title: "Success",
+          description: "Configuration updated successfully",
+          onClick: () => {
+            window.open(`https://base.blockscout.com/tx/${tx}`, "_blank");
+          },
+        });
       }
     } catch (error) {
       console.error("Error updating configuration:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update configuration",
+        variant: "destructive",
+      });
     } finally {
       setIsConfigLoading(false);
     }
@@ -463,7 +482,9 @@ const User = () => {
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <Activity className="w-8 h-8 text-gray-400" />
                 </div>
-                <p className="mt-4 text-lg font-medium text-gray-500">No active leases</p>
+                <p className="mt-4 text-lg font-medium text-gray-500">
+                  No active leases
+                </p>
                 <p className="mt-2 text-sm text-gray-400">
                   Your active leases will appear here
                 </p>
@@ -537,7 +558,7 @@ const User = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="leaseAmount">Lease Amount</Label>
+                <Label htmlFor="leaseAmount">Max Lease Allowance</Label>
                 <Input
                   id="leaseAmount"
                   name="leaseAmount"

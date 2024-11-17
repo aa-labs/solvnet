@@ -3,6 +3,7 @@ import Navbar from "@/components/main/Navbar";
 import Footer from "@/components/main/Footer";
 import User from "./pages/User";
 import Solver from "./pages/Solver";
+import { Toaster } from "@/components/ui/toaster";
 
 const App = () => {
   return (
@@ -14,6 +15,7 @@ const App = () => {
           <Route path="/solver" component={Solver} />
         </Switch>
         <Footer />
+        <Toaster />
       </div>
     </BrowserRouter>
   );

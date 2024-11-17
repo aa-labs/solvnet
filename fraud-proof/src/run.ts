@@ -16,7 +16,7 @@ const STAKING_CONTRACT_ABI = [
 ];
 
 const DEMO_SMART_ACCOUNT = "0x5065dd346560441c8b73c1c2E1C973Ec35d13789"; 
-const DEMO_SOLVER_ADDRESS = "0x5637bD5c6669AbEF9aF19EE0232dc2104604a1E8";
+const DEMO_SOLVER_ADDRESS = "0x00f000Ce899a4A72D392172361B27601B266dD6e";
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
 
 // Initialize the contract instance

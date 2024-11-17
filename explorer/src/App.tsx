@@ -82,7 +82,7 @@ const SolvNetDashboard = () => {
       accessibleLiquidity: "300",
       performance: 100,
       activeLeases: 2,
-      address: "0x5637bD5c6669AbEF9aF19EE0232dc2104604a1E8",
+      address: "0x00f000Ce899a4A72D392172361B27601B266dD6e",
     },
     {
       id: 2,
@@ -145,7 +145,7 @@ const SolvNetDashboard = () => {
 
       // Call backend solver API with the amount needed
       handleSolverRequest(newOrder.amount, newOrderId);
-    }, 30000);
+    }, 20000);
 
     return () => clearInterval(interval);
   }, [incomingOrders]);
@@ -169,7 +169,7 @@ const SolvNetDashboard = () => {
       // Extract solvers used, smart accounts used, and transaction hash from API response
       const smartAccountUsedAddresses = data.saAddresses.solSA;
       const solversUsedAddresses = [
-        "0x5637bD5c6669AbEF9aF19EE0232dc2104604a1E8",
+        "0x00f000Ce899a4A72D392172361B27601B266dD6e",
       ];
       const txHash = data.saAddresses.txHash;
 
@@ -324,7 +324,7 @@ const SolvNetDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Wallet className="mr-2" /> Smart Accounts Leasing Funds
+                  <Wallet className="mr-2" /> Smart Accounts Available Funds
                 </CardTitle>
               </CardHeader>
               <CardContent>
